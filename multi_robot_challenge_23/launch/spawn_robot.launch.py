@@ -48,11 +48,6 @@ def generate_launch_description():
         'yaw',
         default_value='0.0'
     )
-    use_sim_time_arg = DeclareLaunchArgument(
-        'use_sim_time',
-        default_value='true',
-        description='Use simulation (Gazebo) clock if true'
-    )
 
     #Read launch arguments as a launch configuration object
     namespace = LaunchConfiguration('namespace')
@@ -60,14 +55,6 @@ def generate_launch_description():
     y = LaunchConfiguration('y')
     yaw = LaunchConfiguration('yaw')
     use_sim_time = LaunchConfiguration('use_sim_time')
-
-    world_file_path = os.path.join(get_package_share_directory(package_name_robot), 'worlds', 'dat160_w1.world')
-
-    # Starting Gazebo
-    gazebo = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([os.path.join(get_package_share_directory('gazebo_ros'), 'launch'), '/gazebo.launch.py']),
-        launch_arguments={'world': world_file_path}.items()
-    )
 
     #Read out robot description from the xacro file and set it as a launch configuration
     robot_description_arg = OpaqueFunction(function=get_robot_description)
@@ -88,15 +75,15 @@ def generate_launch_description():
 
     # Spawn the robot model in gazebo
     spawn_entity = Node(
-    package='gazebo_ros', 
-    executable='spawn_entity.py',
-    arguments=[
-        '-topic', [namespace, '/robot_description'],
-        '-entity', namespace,
-        '-robot_namespace', namespace,
-        '-x', x, '-y', y, '-Y', yaw
-    ],
-    output='screen'
+        package='gazebo_ros', 
+        executable='spawn_entity.py',
+        namespace=namespace,
+        arguments=['-topic', 'robot_description',
+                    '-entity', namespace,
+                    '-robot_namespace', namespace,
+                    # 'reference_frame', 'world',
+                    '-x', x, '-y', y, '-Y', yaw],
+        output='screen'
     )
     
     # Set a static transformation from the robot's odometry frame to the global map frame
@@ -122,10 +109,8 @@ def generate_launch_description():
         robot_x_pos_arg,
         robot_y_pos_arg,
         robot_yaw_arg,
-        use_sim_time_arg,
         robot_state_publisher,
         spawn_entity,
         tf_map_to_odom,
-        # aruco_recognition,
-        gazebo,
+        aruco_recognition,
     ])
