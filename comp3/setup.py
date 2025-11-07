@@ -21,6 +21,10 @@ setup(
     entry_points={
         'console_scripts': [
             'comp3 = comp3.comp3:main'
+            'bug2_controller = comp3.bug2_controller:main',
+            'wallfollower_controller = comp3.wallfollower_controller:main',
+            'gotopoint_controller = comp3.gotopoint_controller:main',
+            'robot_controller = comp3.robot_controller:main',
         ],
     },
 )
