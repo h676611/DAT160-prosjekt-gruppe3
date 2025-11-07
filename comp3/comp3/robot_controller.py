@@ -6,9 +6,9 @@ from geometry_msgs.msg import Point
 from std_srvs.srv import SetBool
 
 import time
+import threading
 
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
-import time
 from rclpy.executors import MultiThreadedExecutor
 
 
@@ -20,6 +20,12 @@ class RobotController(Node):
     def __init__(self):
         Node.__init__(self, node_name="robot_controller")
         self._action_client = ActionClient(self, GoToPoint, 'gotopoint')
+
+        # Events to coordinate asynchronous goal/result callbacks with execute_callback
+        self._bug2_goal_accepted_event = threading.Event()
+        self._bug2_result_event = threading.Event()
+        self._bug2_goal_handle = None
+        self._bug2_result = None
 
         self.wallfollow_cli = self.create_client(SetBool, 'wall_follow')
 
@@ -75,24 +81,21 @@ class RobotController(Node):
         # Send goal point to bug2 
         self.send_goal(target_point)
 
-        # Wait for bug2 to finish 
-        
-        # Wait until the goal is accepted
-        rclpy.spin_until_future_complete(self, self._send_goal_future)
-        bug2_goal_handle  = self._send_goal_future.result()
+        # Wait for bug2 goal acceptance via event (non-blocking for other threads)
+        if not self._bug2_goal_accepted_event.wait(timeout=5.0):
+            self.get_logger().info("Bug2 goal response timeout.")
+            result.success = False
+            return result
 
-        if not bug2_goal_handle.accepted:
+        if not self._bug2_goal_handle.accepted:
             self.get_logger().info("Bug2 goal rejected.")
             result.success = False
-            bug2_goal_handle.abort()
             return result
 
         self.get_logger().info("Bug2 goal accepted. Waiting for result...")
 
-        # Wait for the actual result (i.e., when Bug2Controller reaches goal)
-        get_result_future = bug2_goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self, get_result_future)
-
+        # Wait for the actual result via event
+        self._bug2_result_event.wait()  # no timeout: block here but other callbacks run in other threads
 
         self.get_logger().info("Bug2 navigation completed successfully.")
 
@@ -102,20 +105,20 @@ class RobotController(Node):
         # Start wall following 
         self.send_request_wallfollow(True)
 
-        time.sleep(10)
-        self.get_logger().info(f'distance to startpoint: {self.distance(self.position, start_point):.4f}')
+        # wait until robot has left the start point (use short sleeps so other threads run)
+        # prefer a short-rate loop to avoid long blocking sleep
+        while self.position is not None and self.distance(self.position, start_point) < 1.0:
+            time.sleep(1.0)
 
-        while (self.distance(self.position, start_point) > 0.5):
+        self.get_logger().info('Robot left start point, now following wall...')
+
+        # wait until robot returns near start_point
+        while self.position is None or self.distance(self.position, start_point) > 0.5:
             self.get_logger().info(f'distance to startpoint: {self.distance(self.position, start_point):.4f}')
             time.sleep(0.5)
 
         self.get_logger().info("Completed wall follow around")
         self.send_request_wallfollow(False)
-        
-
-        # # Publish feedback (you may want to update current_position if needed)
-        # feedback = ExploreWall.Feedback()
-        # goal_handle.publish_feedback(feedback)
 
         goal_handle.succeed()
         self.get_logger().info("Goal completed successfully")
@@ -157,12 +160,15 @@ class RobotController(Node):
 
     def goal_response_callback(self, future):
         goal_handle = future.result()
+        self._bug2_goal_handle = goal_handle
+        # signal execute_callback that response arrived
+        self._bug2_goal_accepted_event.set()
+
         if not goal_handle.accepted:
             self.get_logger().info('Goal rejected')
             return
 
         self._goal_handle = goal_handle
-
         self.get_logger().info('Goal accepted')
 
         # Wait for the result asynchronously
@@ -171,9 +177,12 @@ class RobotController(Node):
 
     def get_result_callback(self, future):
         result = future.result().result
+        self._bug2_result = result
         self.get_logger().info(
             f'Goal finished! Final position: ({result.base_position.x:.2f}, {result.base_position.y:.2f})'
         )
+        # signal execute_callback that result arrived
+        self._bug2_result_event.set()
 
 
 
@@ -204,11 +213,17 @@ def main(args=None):
 
     action_client = RobotController()
 
-    rclpy.spin(action_client)
-
-
+    # Use a multi-threaded executor (at least 2 threads) so clbk_odom runs while execute_callback waits.
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(action_client)
+    try:
+        executor.spin()
+    finally:
+        executor.remove_node(action_client)
+        action_client.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
     main()
-        
+
