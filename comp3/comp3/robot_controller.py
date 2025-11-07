@@ -54,7 +54,7 @@ class RobotController(Node):
 
     def clbk_odom(self, msg):
         self.position = msg.pose.pose.position
-        self.get_logger().info(f"clbk pos: {self.position}")
+        # self.get_logger().info(f"clbk pos: {self.position}")
 
     def distance(self, point1, point2):
         dx = point1.x - point2.x
