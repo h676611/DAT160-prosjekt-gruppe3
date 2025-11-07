@@ -51,7 +51,8 @@ class LeaderClass(Node):
 
             # Now send the goal using the first wall segment
             if self.wall_segments:
-                self.send_goal(response.points[1], robot_ns='tb3_0')  # Adjust to send a list if necessary
+                self.send_goal(response.points[0], robot_ns='tb3_0')  # Adjust to send a list if necessary
+                self.send_goal(response.points[1], robot_ns='tb3_1')  # Adjust to send a list if necessary
         else:
             self.get_logger().info('Failed to receive wall segments from server.')
 
@@ -87,8 +88,8 @@ class LeaderClass(Node):
 
 
     def get_result_callback(self, future):
-        result = future.result().result
-        # self.get_logger().info(f'Goal finished! Final position: ({result.base_position.x:.2f}, {result.base_position.y:.2f})')
+        self.get_logger().info('Goal completed')
+        # result = future.result().result
         # rclpy.shutdown()
 
 

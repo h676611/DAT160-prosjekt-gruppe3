@@ -77,7 +77,14 @@ class RobotController(Node):
         wall = goal_handle.request.wall_points.points
 
         # Pick point in wall
-        target_point = wall[0]
+
+        target_point = wall[len(wall)//2]
+        # for pt in wall:
+        #     if self.distance(pt, self.position) < self.distance(target_point, self.position):
+        #         target_point = pt
+
+        self.get_logger().info(f"Target point selected: x={target_point.x:.2f}, y={target_point.y:.2f}")
+
         # Send goal point to bug2 
         self.send_goal(target_point)
 
