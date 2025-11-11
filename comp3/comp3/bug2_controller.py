@@ -38,8 +38,6 @@ class Bug2Controller(Node):
         self.sub_scan = self.create_subscription(LaserScan, 'scan', self.clbk_laser, 10)
 
         self.pub_marker = self.create_publisher(Marker, 'goal_marker', 2)
-        self.get_logger().info(f'Marker publisher created on topic: {self.pub_marker.get_topic_name()}')
-
         # Laser readings
         self.front = 100.0
         self.right = 100.0
@@ -259,7 +257,6 @@ class Bug2Controller(Node):
         self.marker_msg.points.clear()
         self.marker_msg.points.append(self.goal)
         self.pub_marker.publish(self.marker_msg)
-        self.get_logger().info(f'Published marker to {self.pub_marker.get_topic_name()}')
 
 # ------------------- Main -------------------
 def main(args=None):

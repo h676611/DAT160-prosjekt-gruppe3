@@ -37,7 +37,6 @@ class LeaderClass(Node):
             self.get_logger().error('Unable to fetch wall segments; goals will not be sent.')
 
     
-<<<<<<< HEAD
     def send_goals_to_robots(self):
         if len(self.wall_segments) < len(self.robot_namespaces):
             self.get_logger().error(
@@ -49,15 +48,6 @@ class LeaderClass(Node):
         for idx, ns in enumerate(self.robot_namespaces):
             wall_segment = self.wall_segments[idx]
             self.send_goal(wall_segment, ns)
-=======
-    def send_goals_to_robots(self):
-        # self.wall_segments is a list of PointArray objects
-        if len(self.wall_segments) >= 2:
-            self.send_goal(self.wall_segments[0], 'tb3_0')
-            self.send_goal(self.wall_segments[1], 'tb3_1')
-        else:
-            self.get_logger().error(f'Expected 2 wall segments, got {len(self.wall_segments)}')
->>>>>>> bc1a4bc1ddad99a259204507a975c5e2cf1336d8
 
     def send_request_wallpoints(self):
         max_retries = 10
