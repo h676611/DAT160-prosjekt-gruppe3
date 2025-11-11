@@ -67,9 +67,9 @@ def generate_launch_description():
     
 
     return LaunchDescription([
+        *nodes,
         wall_classifier,
         leader,
-        *nodes
         # marker_detction,
         # marker_map_pose,
         # Node(

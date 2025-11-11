@@ -76,8 +76,20 @@ class RobotController(Node):
         result = ExploreWall.Result()
         wall = goal_handle.request.wall_points.points
 
-        # Pick point in wall
+        # Wait for initial position from odometry
+        timeout = 5.0
+        start_time = time.time()
+        while self.position is None:
+            if time.time() - start_time > timeout:
+                self.get_logger().error('Timeout waiting for initial odometry position')
+                result.success = False
+                goal_handle.abort()
+                return result
+            time.sleep(0.1)
+        
+        self.get_logger().info(f'Initial position received: x={self.position.x:.2f}, y={self.position.y:.2f}')
 
+        # Pick point in wall
         target_point = wall[0]
         for pt in wall:
             if self.distance(pt, self.position) < self.distance(target_point, self.position):
