@@ -41,11 +41,6 @@ class LeaderClass(Node):
         # self.wall_segments is a list of PointArray objects
         if len(self.wall_segments) >= 2:
             self.send_goal(self.wall_segments[0], 'tb3_0')
-            # Print wall segments for debugging
-            self.get_logger().info(f'Wall segments count: {len(self.wall_segments)}')
-            for i, segment in enumerate(self.wall_segments):
-                pts = [(pt.x, pt.y, pt.z) for pt in segment.points]
-                self.get_logger().info(f'Wall {i}: {pts}')
             self.send_goal(self.wall_segments[1], 'tb3_1')
         else:
             self.get_logger().error(f'Expected 2 wall segments, got {len(self.wall_segments)}')
