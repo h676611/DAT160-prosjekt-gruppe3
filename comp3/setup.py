@@ -30,6 +30,8 @@ setup(
             'robot_controller = comp3.robot_controller:main',
             'wall_classifier = comp3.wall_classifier:main',
             'leader = comp3.leader:main',
+            'marker_detection = comp3.marker_detection:main',
+            'marker_map_pose = comp3.marker_map_pose:main',
         ],
     },
 )

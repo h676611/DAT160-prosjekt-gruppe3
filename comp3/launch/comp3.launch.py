@@ -2,33 +2,6 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    bug2_controller = Node(
-        package='comp3',
-        executable='bug2_controller',
-        name='bug2_controller',
-        output='screen',
-    )
-
-    wallfollower_controller = Node(
-        package='comp3',
-        executable='wallfollower_controller',
-        name='wallfollower_controller',
-        output='screen',
-    )
-
-    gotopoint_controller = Node(
-        package='comp3',
-        executable='gotopoint_controller',
-        name='gotopoint_controller',
-        output='screen',
-    )
-
-    robot_controller = Node(
-        package='comp3',
-        executable='robot_controller',
-        name='robot_controller',
-        output='screen',
-    )
 
     wall_classifier = Node(
         package='comp3',
@@ -44,12 +17,28 @@ def generate_launch_description():
         output='screen',
         )
     
+    marker_detction = Node(
+        package='comp3',
+        executable='marker_detection',
+        name='marker_detection',
+        output='screen',
+        )
+    
+    marker_map_pose = Node(
+        package='comp3',
+        executable='marker_map_pose',
+        name='marker_map_pose',
+        output='screen',
+        )
+    
 
     return LaunchDescription([
-        bug2_controller,
-        wallfollower_controller,
-        gotopoint_controller,
-        robot_controller,
         wall_classifier,
-        leader
+        leader,
+        # marker_detction,
+        # marker_map_pose,
+        # Node(
+        #     package='scoring',
+        #     executable='scoring',
+        #     name='scoring'),
     ])
