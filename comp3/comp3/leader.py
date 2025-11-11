@@ -4,8 +4,7 @@ from rclpy.action import ActionClient
 from bug2_interfaces.action import ExploreWall
 from bug2_interfaces.srv import SetWallpoints 
 from bug2_interfaces.msg import PointArray
-from geometry_msgs.msg import Point, PointStamped
-from typing import List
+from geometry_msgs.msg import PointStamped
 import time
 
 class LeaderClass(Node):
@@ -32,18 +31,23 @@ class LeaderClass(Node):
             self.get_logger().info('wallpoints service not available, waiting...')
         self.wall_segments_req = SetWallpoints.Request()
 
-        self.send_request_wallpoints()
-
-        self.send_goals_to_robots()
+        if self.send_request_wallpoints():
+            self.send_goals_to_robots()
+        else:
+            self.get_logger().error('Unable to fetch wall segments; goals will not be sent.')
 
     
     def send_goals_to_robots(self):
-        wall_point_array_0 = PointArray()
-        wall_point_array_0.points = self.wall_segments[0]
-        wall_point_array_1 = PointArray()
-        wall_point_array_1.points = self.wall_segments[1]
-        self.send_goal(wall_point_array_0, 'tb3_0')
-        self.send_goal(wall_point_array_1, 'tb3_1')
+        if len(self.wall_segments) < len(self.robot_namespaces):
+            self.get_logger().error(
+                f'Expected at least {len(self.robot_namespaces)} wall segments, '
+                f'but received {len(self.wall_segments)}.'
+            )
+            return
+
+        for idx, ns in enumerate(self.robot_namespaces):
+            wall_segment = self.wall_segments[idx]
+            self.send_goal(wall_segment, ns)
 
     def send_request_wallpoints(self):
         max_retries = 10
@@ -54,19 +58,22 @@ class LeaderClass(Node):
             rclpy.spin_until_future_complete(self, future)
             response = future.result()
             
-            if response is not None and response.success:
-                self.wall_segments = response.points
-                self.get_logger().info(f'Received {len(self.wall_segments)} wall segments on attempt {attempt + 1}')
-                return  # success, exit
-            else:
-                self.get_logger().warn(
-                    f'Wallpoints service returned success=False (attempt {attempt + 1}/{max_retries}). '
-                    f'Retrying in {retry_delay}s...'
+            if response is not None and response.points:
+                self.wall_segments = list(response.points)
+                self.get_logger().info(
+                    f'Received {len(self.wall_segments)} wall segments on attempt {attempt + 1}'
                 )
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                else:
-                    self.get_logger().error('Failed to get wallpoints after all retries')
+                return True
+
+            self.get_logger().warn(
+                f'Wallpoints service returned no segments (attempt {attempt + 1}/{max_retries}). '
+                f'Retrying in {retry_delay}s...'
+            )
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+
+        self.get_logger().error('Failed to get wallpoints after all retries')
+        return False
 
 
     def cancel_done(self, future):
