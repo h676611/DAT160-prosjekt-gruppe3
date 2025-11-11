@@ -37,6 +37,7 @@ class MapFilterClass(Node):
         # self.cluster_pub = self.create_publisher(PoseArray, '/wall_points', 10)
 
 
+        self.map_received = False
         self.srv = self.create_service(SetWallpoints, '/wallpoints', self.clbk_wallpoints)
 
         self.marker_msg = Marker()
@@ -73,6 +74,11 @@ class MapFilterClass(Node):
 
 
     def clbk_wallpoints(self, request, response):
+        if not self.map_received:
+            self.get_logger().warn('Wallpoints requested but no map received yet')
+            response.success = False
+            return response
+
         self.cluster_points = self.find_wall_clusters(self.map_msg)
         response.points = self.cluster_points
         return response
@@ -80,6 +86,9 @@ class MapFilterClass(Node):
 
 
     def clbk_map(self, msg):
+        self.map_received = True
+        self.get_logger().info('Map received.')
+
         if self.map_msg.header == msg.header:
             return
         self.og_map_msg = msg
