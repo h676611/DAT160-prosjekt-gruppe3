@@ -131,10 +131,17 @@ class WallfollowerController(Node):
 
         lost_left = left_dist > self.desired_distance * self.gap_factor
 
-        if front < self.front_clearance or front_left < (self.front_clearance * 0.95):
-            self.mode = 'AVOID'
+        if self.mode == 'SEARCH':
+            if front < self.front_clearance or front_left < (self.front_clearance * 0.95):
+                self.mode = 'AVOID'
+            elif not lost_left:
+                # Found a nearby wall to latch onto.
+                self.mode = 'FOLLOW'
         else:
-            self.mode = 'BRIDGE' if lost_left else 'FOLLOW'
+            if front < self.front_clearance or front_left < (self.front_clearance * 0.95):
+                self.mode = 'AVOID'
+            else:
+                self.mode = 'BRIDGE' if lost_left else 'FOLLOW'
 
         twist = Twist()
 

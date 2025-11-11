@@ -76,12 +76,11 @@ class MapFilterClass(Node):
     def clbk_wallpoints(self, request, response):
         if not self.map_received:
             self.get_logger().warn('Wallpoints requested but no map received yet')
-            response.success = False
+            response.points = []
             return response
 
         self.cluster_points = self.find_wall_clusters(self.map_msg)
         response.points = self.cluster_points
-        response.success = True
         return response
     
 
