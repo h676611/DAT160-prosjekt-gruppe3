@@ -80,6 +80,9 @@ class MapFilterClass(Node):
             return response
 
         self.cluster_points = self.find_wall_clusters(self.map_msg)
+
+        # sort clusters by size (number of points)
+        self.cluster_points.sort(key=lambda pa: len(pa.points), reverse=True)
         response.points = self.cluster_points
         return response
     

@@ -44,6 +44,19 @@ class LeaderClass(Node):
                 f'but received {len(self.wall_segments)}.'
             )
             return
+        
+        # filter wall segments based on size
+        threshold = 10
+        filtered_segments = [ws for ws in self.wall_segments if len(ws.points) >= threshold]
+
+        # if only one segment after filtering, give it to both robots
+        if len(filtered_segments) == 1:
+            filtered_segments = [filtered_segments[0], filtered_segments[0]]
+            self.send_goal(filtered_segments[0], self.robot_namespaces[0])
+            self.send_goal(filtered_segments[0], self.robot_namespaces[1])
+            return
+
+        
 
         for idx, ns in enumerate(self.robot_namespaces):
             wall_segment = self.wall_segments[idx]
@@ -63,6 +76,9 @@ class LeaderClass(Node):
                 self.get_logger().info(
                     f'Received {len(self.wall_segments)} wall segments on attempt {attempt + 1}'
                 )
+                # log wall segment sizes
+                for i, segment in enumerate(self.wall_segments):
+                    self.get_logger().info(f'Wall segment {i} size: {len(segment.points)} points')
                 return True
 
             self.get_logger().warn(
