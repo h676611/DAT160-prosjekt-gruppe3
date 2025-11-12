@@ -2,13 +2,13 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point
-from bug2_interfaces.srv import Switch 
+from comp3_interfaces.srv import Switch 
 from sensor_msgs.msg import LaserScan
 from std_srvs.srv import SetBool
 import math
 import numpy as np
 
-from bug2_interfaces.action import GoToPoint
+from comp3_interfaces.action import GoToPoint
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 import time
 from rclpy.executors import MultiThreadedExecutor

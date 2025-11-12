@@ -1,9 +1,9 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
-from bug2_interfaces.action import ExploreWall
-from bug2_interfaces.srv import SetWallpoints 
-from bug2_interfaces.msg import PointArray
+from comp3_interfaces.action import ExploreWall
+from comp3_interfaces.srv import SetWallpoints 
+from comp3_interfaces.msg import PointArray
 from geometry_msgs.msg import PointStamped
 import time
 

@@ -24,13 +24,6 @@ def generate_launch_description():
         output='screen',
         )
     
-    marker_map_pose = Node(
-        package='comp3',
-        executable='marker_map_pose',
-        name='marker_map_pose',
-        output='screen',
-        )
-    
 
     namespaces = ['tb3_0', 'tb3_1']
 
@@ -70,10 +63,9 @@ def generate_launch_description():
         *nodes,
         wall_classifier,
         leader,
-        # marker_detction,
-        # marker_map_pose,
-        # Node(
-        #     package='scoring',
-        #     executable='scoring',
-        #     name='scoring'),
+        marker_detction,
+        Node(
+            package='scoring',
+            executable='scoring',
+            name='scoring'),
     ])

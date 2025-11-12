@@ -68,7 +68,7 @@ class MarkerDetection(Node):
             # send request to set marker position service
             request = SetMarkerPosition.Request()
             request.marker_id = self.marker_id_0
-            request.position = self.marker_position_0
+            request.marker_position = self.marker_position_0
             self.cli_set_marker_position.call_async(request)
 
             self.get_logger().info(f"[tb3_0] marker_id: {self.marker_id_0}")
@@ -82,7 +82,7 @@ class MarkerDetection(Node):
             # send request to set marker position service
             request = SetMarkerPosition.Request()
             request.marker_id = self.marker_id_1
-            request.position = self.marker_position_1
+            request.marker_position = self.marker_position_1
             self.cli_set_marker_position.call_async(request)
             
             self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")

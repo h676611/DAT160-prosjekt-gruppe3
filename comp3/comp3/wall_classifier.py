@@ -12,8 +12,8 @@ from geometry_msgs.msg import PoseArray, Pose
 from std_msgs.msg import ColorRGBA
 from typing import List
 
-from bug2_interfaces.srv import SetWallpoints
-from bug2_interfaces.msg import PointArray
+from comp3_interfaces.srv import SetWallpoints
+from comp3_interfaces.msg import PointArray
 
 
 class MapFilterClass(Node):

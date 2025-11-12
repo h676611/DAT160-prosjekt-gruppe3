@@ -3,7 +3,7 @@ from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Point
-from bug2_interfaces.srv import Switch 
+from comp3_interfaces.srv import Switch 
 import math
 
 from tf_transformations import euler_from_quaternion

@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
-from bug2_interfaces.action import GoToPoint, ExploreWall
+from comp3_interfaces.action import GoToPoint, ExploreWall
 from geometry_msgs.msg import Point
 from std_srvs.srv import SetBool
 
