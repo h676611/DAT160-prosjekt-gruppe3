@@ -84,7 +84,7 @@ def generate_launch_description():
             'namespace': 'tb3_2',
             'x': '-0.5',
             'y': '0.0',
-            'use_sim_time': 'true'
+            'use_sim_time': 'false'
         }.items()
     )
 

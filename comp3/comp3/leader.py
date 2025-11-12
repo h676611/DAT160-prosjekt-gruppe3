@@ -105,7 +105,7 @@ class LeaderClass(Node):
 
         self.get_logger().info('Sending initial goals to robots...')
         for ns, wall in self.current_walls.items():
-            self.send_goal(wall, ns, follow_right=True)
+            self.send_goal(wall, ns, follow_right=ns == 'tb3_0')
 
 
 
@@ -125,11 +125,11 @@ class LeaderClass(Node):
                 )
 
                 # drop segments under threshold
-                threshold = 10
-                self.wall_segments = [
-                    segment for segment in self.wall_segments
-                    if len(segment.points) >= threshold
-                ]
+                # threshold = 8
+                # self.wall_segments = [
+                #     segment for segment in self.wall_segments
+                #     if len(segment.points) >= threshold
+                # ]
 
                 # log wall segment sizes
                 for i, segment in enumerate(self.wall_segments):

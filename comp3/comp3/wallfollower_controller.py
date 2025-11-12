@@ -66,7 +66,7 @@ class WallfollowerController(Node):
 
     #Callback function for the Turtlebots Lidar topic /scan
     def clbk_laser(self, msg):
-        values = np.concatenate((msg.ranges[350:], msg.ranges[:11]))  # 350–364 + 0–10
+        values = np.concatenate((msg.ranges[345:], msg.ranges[:16]))  # 350–364 + 0–10
         max_val = np.min(values)
         self.front = max_val 
         self.right = msg.ranges[315] # 45 degrees right of front
@@ -98,8 +98,8 @@ class WallfollowerController(Node):
 
         vel_msg = Twist()
 
-        desired_distance = 0.5
-        hyp = 0.43
+        desired_distance = 0.6
+        hyp = 0.55
 
         if self.follow_right:
             error = abs(self.right - hyp)
@@ -109,7 +109,7 @@ class WallfollowerController(Node):
                 vel_msg.linear.x = -0.01
             elif self.right > 5.0:
                 # no wall on right turning right
-                vel_msg.angular.z = -0.55
+                vel_msg.angular.z = -0.5
                 vel_msg.linear.x = 0.1 
             else:
                 vel_msg.linear.x = 0.3
@@ -120,7 +120,7 @@ class WallfollowerController(Node):
                     else:
                         # too far away from wall turning right
                         vel_msg.angular.z = -min( 0.7, 1.3 * error)
-                    vel_msg.linear.x = max(0.3, 0.1 * (1 - abs(vel_msg.angular.z)/0.7))
+                    vel_msg.linear.x = max(0.3, 0.15 * (1 - abs(vel_msg.angular.z)/0.7))
                 else:
                     # desired distance to wall go forward
                     vel_msg.angular.z = 0.0
@@ -133,7 +133,7 @@ class WallfollowerController(Node):
                 vel_msg.linear.x = -0.01
             elif self.left > 5.0:
                 # no wall on right turning right
-                vel_msg.angular.z = 0.55
+                vel_msg.angular.z = 0.5
                 vel_msg.linear.x = 0.1
             else:
                 vel_msg.linear.x = 0.3
@@ -144,7 +144,7 @@ class WallfollowerController(Node):
                     else:
                         # too far away from wall turning right
                         vel_msg.angular.z = min( 0.7, 1.3 * error)
-                    vel_msg.linear.x = max(0.3, 0.1 * (1 - abs(vel_msg.angular.z)/0.7))
+                    vel_msg.linear.x = max(0.3, 0.15 * (1 - abs(vel_msg.angular.z)/0.7))
                 else:
                     # desired distance to wall go forward
                     vel_msg.angular.z = 0.0
