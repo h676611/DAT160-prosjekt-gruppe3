@@ -1,4 +1,9 @@
-To run the file: ros2 launch comp3 comp3.launch.py
+Group 3
+To run:
+```
+ros2 launch comp3 comp3.launch.py 
+```
+after launching the world
 
 We modified the world files in the multi_robot_challenge_23 repo to add:
 ```
