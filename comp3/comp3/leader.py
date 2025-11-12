@@ -4,9 +4,10 @@ from rclpy.action import ActionClient
 from comp3_interfaces.action import ExploreWall
 from comp3_interfaces.srv import SetWallpoints 
 from comp3_interfaces.msg import PointArray
-from geometry_msgs.msg import PointStamped
 import time
 from comp3_interfaces.srv import SetID4pos
+from comp3_interfaces.action import GoToPoint
+from geometry_msgs.msg import Point
 
 class LeaderClass(Node):
     def __init__(self):
@@ -18,6 +19,9 @@ class LeaderClass(Node):
             ns: ActionClient(self, ExploreWall, f'/{ns}/explore_wall')
             for ns in self.robot_namespaces
         }
+
+
+        self.gotopoint_action_client = ActionClient(self, GoToPoint, '/tb3_2/gotopoint')
 
         self.ID4pos_service = self.create_service(SetID4pos,'set_id_4_pos', self.clbk_set_id_4_pos)
 
@@ -41,13 +45,47 @@ class LeaderClass(Node):
             self.send_goals_to_robots()
         else:
             self.get_logger().error('Unable to fetch wall segments; goals will not be sent.')
+
+    
+    def send_goal_gotopoint(self, point: Point):
+        while not self.gotopoint_action_client.wait_for_server(timeout_sec=1.0):
+            self.get_logger().info('Waiting for tb3_2 GoToPoint action server...')
+        
+        goal_msg = GoToPoint.Goal()
+        goal_msg.target_position = point
+
+        self.get_logger().info(f'Sending goal request for: {point.x:.2f}, {point.y:.2f}')
+        send_future = self.gotopoint_action_client.send_goal_async(
+            goal_msg,
+            feedback_callback=self.feedback_callback
+        )
+        send_future.add_done_callback(self.gotopoint_goal_response_callback)
+
+
+    def gotopoint_goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('GoToPoint goal rejected for tb3_2')
+            return
+
+        self.get_logger().info('GoToPoint goal accepted for tb3_2')
+        get_result_future = goal_handle.get_result_async()
+        get_result_future.add_done_callback(self.gotopoint_result_callback)
+
+    def gotopoint_result_callback(self, future):
+        result = future.result().result
+        self.get_logger().info('tb3_2 reached ID4 position')
+
+
     
     def clbk_set_id_4_pos(self, request, response):
         self.get_logger().info(f"SetID4pos request received: id={request.point}, robot_number={request.robot_number}")
         self.ID4pos = request.point
         response.success = True
-        return response
 
+        self.send_goal_gotopoint(self.ID4pos)
+
+        return response
 
 
     

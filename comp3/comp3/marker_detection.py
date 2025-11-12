@@ -49,9 +49,13 @@ class MarkerDetection(Node):
         self.marker_position_1 = Point()
         self.prev_marker_position_1 = Point()
 
+
+        self.hasSentID4pos = False
+
         # Timer to check markers once per second
         timer_period = 0.1  # seconds
-        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.timer = self.create_timer(timer_period, self.timer_callback_tb3_0)
+        self.timer = self.create_timer(timer_period, self.timer_callback_tb3_1)
 
     #------------------ Callbacks for tb3_0 ------------------
     def clbk_marker_map_pose_0(self, msg):
@@ -68,10 +72,19 @@ class MarkerDetection(Node):
         self.marker_id_1 = msg.data
 
     #------------------ Timer callback ------------------
-    def timer_callback(self):
+    def timer_callback_tb3_0(self):
         # Check tb3_0
         if self.marker_id_0 > 4 or abs(self.marker_position_0.x-self.prev_marker_position_0.x) < 0.1 or abs(self.marker_position_0.y - self.prev_marker_position_0.y) < 0.1:
             return
+
+        if not self.hasSentID4pos:
+            self.get_logger().info("Sending SetID4pos for tb3_0")
+            req = SetID4pos.Request()
+            req.point = self.marker_position_0
+            req.robot_number = 0
+            self.setID4pos_srv.call_async(req)
+            self.hasSentID4pos = True
+
         
         # send request to set marker position service
         request = SetMarkerPosition.Request()
@@ -83,11 +96,20 @@ class MarkerDetection(Node):
 
         self.get_logger().info(f"[tb3_0] marker_id: {self.marker_id_0}")
         self.get_logger().info(f"[tb3_0] marker_position: {self.marker_position_0}")
-        # self.prev_marker_id_0 = self.marker_id_0
 
+    def timer_callback_tb3_1(self):
         # Check tb3_1
         if self.marker_id_1 > 4 or abs(self.marker_position_1.x - self.prev_marker_position_1.x) < 0.1 or abs(self.marker_position_1.y - self.prev_marker_position_1.y) < 0.1:
             return
+
+        if not self.hasSentID4pos:
+            self.get_logger().info("Sending SetID4pos for tb3_1")
+            req = SetID4pos.Request()
+            req.point = self.marker_position_1
+            req.robot_number = 1
+            self.setID4pos_srv.call_async(req)
+            self.hasSentID4pos = True
+
         # send request to set marker position service
         request = SetMarkerPosition.Request()
         request.marker_id = self.marker_id_1
@@ -95,22 +117,22 @@ class MarkerDetection(Node):
         self.cli_set_marker_position.call_async(request)
 
         self.prev_marker_position_1 = self.marker_position_1
-        
+
         self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")
         self.get_logger().info(f"[tb3_1] marker_position: {self.marker_position_1}")
-        # self.prev_marker_id_1 = self.marker_id_1
 
-        if self.marker_id_0 == 4:
-            # send request to setID4pos service
-            self.setID4pos_req.point = self.marker_position_0
-            self.setID4pos_req.robot_number = 0
-            future = self.setID4pos_srv.call_async(self.setID4pos_req)
         
-        if self.marker_id_1 == 4:
-            # send request to setID4pos service
-            self.setID4pos_req.point = self.marker_position_1
-            self.setID4pos_req.robot_number = 1
-            future = self.setID4pos_srv.call_async(self.setID4pos_req)
+        # send request to set marker position service
+        request = SetMarkerPosition.Request()
+        request.marker_id = self.marker_id_1
+        request.marker_position = self.marker_position_1
+        self.cli_set_marker_position.call_async(request)
+
+        self.prev_marker_position_1 = self.marker_position_1
+
+        self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")
+        self.get_logger().info(f"[tb3_1] marker_position: {self.marker_position_1}")
+
         
 
 
