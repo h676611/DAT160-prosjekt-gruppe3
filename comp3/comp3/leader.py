@@ -13,8 +13,6 @@ class LeaderClass(Node):
 
         self.robot_namespaces = ['tb3_0', 'tb3_1']
 
-
-
         self.action_clients = {
             ns: ActionClient(self, ExploreWall, f'/{ns}/explore_wall')
             for ns in self.robot_namespaces
@@ -25,6 +23,8 @@ class LeaderClass(Node):
         self.click_sub = self.create_subscription(PointStamped, '/clicked_point', self.point_clbck, 10)
 
         self.wall_segments = []
+
+        self.robot_wall_progress = {ns: 0 for ns in self.robot_namespaces}
 
 
         while not self.wall_segments_cli.wait_for_service(timeout_sec=1.0):
@@ -44,23 +44,21 @@ class LeaderClass(Node):
                 f'but received {len(self.wall_segments)}.'
             )
             return
-        
-        # filter wall segments based on size
-        threshold = 10
-        filtered_segments = [ws for ws in self.wall_segments if len(ws.points) >= threshold]
 
-        # if only one segment after filtering, give it to both robots
-        if len(filtered_segments) == 1:
-            filtered_segments = [filtered_segments[0], filtered_segments[0]]
-            self.send_goal(filtered_segments[0], self.robot_namespaces[0])
-            self.send_goal(filtered_segments[0], self.robot_namespaces[1])
-            return
+        # only use the first two walls for simplicity
+        wall_a = self.wall_segments[0]
+        wall_b = self.wall_segments[1]
 
-        
+        # initial assignment
+        self.current_walls = {
+            'tb3_0': wall_a,
+            'tb3_1': wall_b
+        }
 
-        for idx, ns in enumerate(self.robot_namespaces):
-            wall_segment = self.wall_segments[idx]
-            self.send_goal(wall_segment, ns)
+        self.get_logger().info('Sending initial goals to both robots...')
+        self.send_goal(wall_a, 'tb3_0', follow_right=True)
+        self.send_goal(wall_b, 'tb3_1', follow_right=False)
+
 
     def send_request_wallpoints(self):
         max_retries = 10
@@ -105,32 +103,44 @@ class LeaderClass(Node):
         new_target = msg.point
         self.get_logger().info(f"New goal received: x={new_target.x:.2f}, y={new_target.y:.2f}")
 
-    def goal_response_callback(self, future):
+    def goal_response_callback(self, future, robot_ns):
         goal_handle = future.result()
         if not goal_handle.accepted:
-            self.get_logger().info('Goal rejected')
+            self.get_logger().info(f'Goal rejected for {robot_ns}')
             return
 
-        self._goal_handle = goal_handle
+        self.get_logger().info(f'Goal accepted for {robot_ns}')
 
-        self.get_logger().info('Goal accepted')
-
-        # Wait for the result asynchronously
         self._get_result_future = goal_handle.get_result_async()
-        self._get_result_future.add_done_callback(self.get_result_callback)
+        self._get_result_future.add_done_callback(
+            lambda future, ns=robot_ns: self.get_result_callback(future, ns)
+        )
 
 
-    def get_result_callback(self, future):
-        self.get_logger().info('Goal completed')
-        # result = future.result().result
-        # rclpy.shutdown()
+    def get_result_callback(self, future, robot_ns):
+        self.get_logger().info(f'{robot_ns} finished exploring its wall.')
+
+        # Determine the other robot's namespace
+        other_robot = [r for r in self.robot_namespaces if r != robot_ns][0]
+        other_wall = self.current_walls[other_robot]
+
+        # Flip direction for this new wall
+        follow_right = not (robot_ns == 'tb3_0')
+
+        # Send new goal to this robot
+        self.get_logger().info(f'{robot_ns} now exploring {other_robot}\'s wall (follow_right={follow_right})')
+        self.send_goal(other_wall, robot_ns, follow_right)
+
+        # Update the tracking dictionary
+        self.current_walls[robot_ns] = other_wall
+
 
 
     def feedback_callback(self, feedback_msg):
         return
 
 
-    def send_goal(self, wall: PointArray, robot_ns: str):
+    def send_goal(self, wall: PointArray, robot_ns: str, follow_right: bool):
         action_client = self.action_clients[robot_ns]
 
         self.get_logger().info(f'Waiting for action server in {robot_ns}...')
@@ -139,13 +149,16 @@ class LeaderClass(Node):
         goal_msg = ExploreWall.Goal()
         goal_msg.wall_points = wall
         goal_msg.wall_id = 0
+        goal_msg.follow_right = follow_right
 
-        self.get_logger().info(f'Sending goal to {robot_ns}...')
+        self.get_logger().info(f'Sending goal to {robot_ns} (follow_right={follow_right})...')
         send_future = action_client.send_goal_async(
             goal_msg,
             feedback_callback=self.feedback_callback
         )
-        send_future.add_done_callback(self.goal_response_callback)
+        send_future.add_done_callback(
+            lambda future, ns=robot_ns: self.goal_response_callback(future, ns)
+        )
 
 
 def main(args=None):

@@ -32,12 +32,12 @@ class MarkerDetection(Node):
 
         #------------------ Variables for tb3_0 ------------------
         self.prev_marker_id_0 = -1
-        self.marker_id_0 = -1
+        self.marker_id_0 = 1000
         self.marker_position_0 = Point()
 
         #------------------ Variables for tb3_1 ------------------
         self.prev_marker_id_1 = -1
-        self.marker_id_1 = -1
+        self.marker_id_1 = 1000
         self.marker_position_1 = Point()
 
         # Timer to check markers once per second
@@ -61,33 +61,31 @@ class MarkerDetection(Node):
     #------------------ Timer callback ------------------
     def timer_callback(self):
         # Check tb3_0
-        if self.marker_id_0 != self.prev_marker_id_0:
-            if self.marker_id_0 > 8:
-                return
-            
-            # send request to set marker position service
-            request = SetMarkerPosition.Request()
-            request.marker_id = self.marker_id_0
-            request.marker_position = self.marker_position_0
-            self.cli_set_marker_position.call_async(request)
+        if self.marker_id_0 > 4:
+            return
+        
+        # send request to set marker position service
+        request = SetMarkerPosition.Request()
+        request.marker_id = self.marker_id_0
+        request.marker_position = self.marker_position_0
+        self.cli_set_marker_position.call_async(request)
 
-            self.get_logger().info(f"[tb3_0] marker_id: {self.marker_id_0}")
-            self.get_logger().info(f"[tb3_0] marker_position: {self.marker_position_0}")
-            self.prev_marker_id_0 = self.marker_id_0
+        self.get_logger().info(f"[tb3_0] marker_id: {self.marker_id_0}")
+        self.get_logger().info(f"[tb3_0] marker_position: {self.marker_position_0}")
+        # self.prev_marker_id_0 = self.marker_id_0
 
         # Check tb3_1
-        if self.marker_id_1 != self.prev_marker_id_1:
-            if self.marker_id_1 > 8:
-                return
-            # send request to set marker position service
-            request = SetMarkerPosition.Request()
-            request.marker_id = self.marker_id_1
-            request.marker_position = self.marker_position_1
-            self.cli_set_marker_position.call_async(request)
-            
-            self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")
-            self.get_logger().info(f"[tb3_1] marker_position: {self.marker_position_1}")
-            self.prev_marker_id_1 = self.marker_id_1
+        if self.marker_id_1 > 4:
+            return
+        # send request to set marker position service
+        request = SetMarkerPosition.Request()
+        request.marker_id = self.marker_id_1
+        request.marker_position = self.marker_position_1
+        self.cli_set_marker_position.call_async(request)
+        
+        self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")
+        self.get_logger().info(f"[tb3_1] marker_position: {self.marker_position_1}")
+        # self.prev_marker_id_1 = self.marker_id_1
 
 
 def main(args=None):

@@ -9,6 +9,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PointArray.msg"
   "srv/Switch.srv"
   "srv/SetWallpoints.srv"
+  "srv/Wallfollow.srv"
   "action/GoToPoint.action"
   "action/ExploreWall.action"
   DEPENDENCIES geometry_msgs

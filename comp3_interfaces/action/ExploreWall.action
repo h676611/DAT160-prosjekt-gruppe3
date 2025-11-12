@@ -1,6 +1,7 @@
 #goal definition
 int32 wall_id
 PointArray wall_points
+bool follow_right
 ---
 #result definition
 bool success

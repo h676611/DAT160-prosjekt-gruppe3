@@ -3,7 +3,7 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from comp3_interfaces.action import GoToPoint, ExploreWall
 from geometry_msgs.msg import Point
-from std_srvs.srv import SetBool
+from comp3_interfaces.srv import Wallfollow
 
 import time
 import threading
@@ -27,11 +27,11 @@ class RobotController(Node):
         self._bug2_goal_handle = None
         self._bug2_result = None
 
-        self.wallfollow_cli = self.create_client(SetBool, 'wall_follow')
+        self.wallfollow_cli = self.create_client(Wallfollow, 'wall_follow')
 
         while not self.wallfollow_cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('wall_follow service not available, waiting...')
-        self.wallfollow_req = SetBool.Request()
+        self.wallfollow_req = Wallfollow.Request()
 
 
         self._action_server = ActionServer(
@@ -75,6 +75,7 @@ class RobotController(Node):
         self.get_logger().info("Starting action execution")
         result = ExploreWall.Result()
         wall = goal_handle.request.wall_points.points
+        follow_right = goal_handle.request.follow_right
 
         # Wait for initial position from odometry
         timeout = 5.0
@@ -98,6 +99,7 @@ class RobotController(Node):
         self.get_logger().info(f"Target point selected: x={target_point.x:.2f}, y={target_point.y:.2f}")
 
         # Send goal point to bug2 
+        
         self.send_goal(target_point)
 
         # Wait for bug2 goal acceptance via event (non-blocking for other threads)
@@ -122,7 +124,7 @@ class RobotController(Node):
         self.get_logger().info(f"start_point: {start_point}")
 
         # Start wall following 
-        self.send_request_wallfollow(True)
+        self.send_request_wallfollow(activate=True, follow_right=follow_right)
 
         # wait until robot has left the start point (use short sleeps so other threads run)
         # prefer a short-rate loop to avoid long blocking sleep
@@ -133,11 +135,14 @@ class RobotController(Node):
 
         # wait until robot returns near start_point
         while self.position is None or self.distance(self.position, start_point) > 0.5:
-            self.get_logger().info(f'distance to startpoint: {self.distance(self.position, start_point):.4f}')
+            # self.get_logger().info(f'distance to startpoint: {self.distance(self.position, start_point):.4f}')
             time.sleep(0.5)
 
+        
+        
         self.get_logger().info("Completed wall follow around")
-        self.send_request_wallfollow(False)
+        
+        self.send_request_wallfollow(activate=False)
 
         goal_handle.succeed()
         self.get_logger().info("Goal completed successfully")
@@ -159,8 +164,9 @@ class RobotController(Node):
 
     # ------------------- Service client ------------------
 
-    def send_request_wallfollow(self, data: bool):
-        self.wallfollow_req.data = data
+    def send_request_wallfollow(self, activate, follow_right = False):
+        self.wallfollow_req.activate = activate
+        self.wallfollow_req.follow_right = follow_right
         future = self.wallfollow_cli.call_async(self.wallfollow_req)
         future.add_done_callback(lambda fut: None)
         return future

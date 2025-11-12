@@ -4,7 +4,7 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point
 from comp3_interfaces.srv import Switch 
 from sensor_msgs.msg import LaserScan
-from std_srvs.srv import SetBool
+from comp3_interfaces.srv import Wallfollow
 import math
 import numpy as np
 
@@ -31,7 +31,7 @@ class Bug2Controller(Node):
 
         # Service clients
         self.gotopoint_cli = self.create_client(Switch, 'go_to_point')
-        self.wallfollow_cli = self.create_client(SetBool, 'wall_follow')
+        self.wallfollow_cli = self.create_client(Wallfollow, 'wall_follow')
  
         # Subscribers
         self.sub_odom = self.create_subscription(Odometry, 'odom', self.clbk_odom, 10)
@@ -62,7 +62,7 @@ class Bug2Controller(Node):
         # Wait for services
         while not self.wallfollow_cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('wall_follow service not available, waiting...')
-        self.wallfollow_req = SetBool.Request()
+        self.wallfollow_req = Wallfollow.Request()
 
         while not self.gotopoint_cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('go_to_point service not available, waiting...')
@@ -74,6 +74,7 @@ class Bug2Controller(Node):
 
     def execute_callback(self, goal_handle):
         self.get_logger().info("Starting action execution")
+        self.atGoal = False
         result = GoToPoint.Result()
 
         self.goal = goal_handle.request.target_position
@@ -149,7 +150,7 @@ class Bug2Controller(Node):
             if self.isOnMline() and self.hitPoint is not None and  self.isCloserToGoal(self.position, self.hitPoint):
                 self.switch_to_gotopoint()
         else:
-            if self.front < 1.0:
+            if self.front < 0.5:
                 self.hitPoint = self.position
                 self.switch_to_wallfollow()
             else:
@@ -159,7 +160,7 @@ class Bug2Controller(Node):
 
     def stop_robot(self):
         self.send_request_gotopoint(False, self.goal)
-        self.send_request_wallfollow(False)
+        self.send_request_wallfollow(activate=False, follow_right=False)
 
     def switch_to_gotopoint(self):
         """
@@ -169,7 +170,7 @@ class Bug2Controller(Node):
         if self.isWallFollowActive:
             self.stop_robot()
             self.isWallFollowActive = False
-            self.send_request_wallfollow(False)
+            self.send_request_wallfollow(activate=False, follow_right=False)
             self.send_request_gotopoint(True, self.goal)
             self.get_logger().info("Switching to gotopoint")
 
@@ -182,7 +183,7 @@ class Bug2Controller(Node):
             self.stop_robot()
             self.isWallFollowActive = True
             self.send_request_gotopoint(False, self.goal)
-            self.send_request_wallfollow(True)
+            self.send_request_wallfollow(activate=True, follow_right=False)
             self.get_logger().info("Switching to wall-following")
 
     def isOnMline(self):
@@ -222,8 +223,9 @@ class Bug2Controller(Node):
         future.add_done_callback(lambda fut: None)
         return future
 
-    def send_request_wallfollow(self, data):
-        self.wallfollow_req.data = data
+    def send_request_wallfollow(self, activate, follow_right = False):
+        self.wallfollow_req.activate = activate
+        self.wallfollow_req.follow_right = follow_right
         future = self.wallfollow_cli.call_async(self.wallfollow_req)
         future.add_done_callback(lambda fut: None)
         return future
