@@ -70,10 +70,10 @@ class WallfollowerController(Node):
             if self.front < desired_distance + 0.1:
                 # wall ahead turning left
                 vel_msg.angular.z = 0.8
-                vel_msg.linear.x = -0.05
+                vel_msg.linear.x = -0.00
             elif self.right > 5.0:
                 # no wall on right turning right
-                vel_msg.angular.z = -0.6
+                vel_msg.angular.z = -0.55
                 vel_msg.linear.x = 0.1 
             else:
                 vel_msg.linear.x = 0.3
@@ -93,10 +93,10 @@ class WallfollowerController(Node):
             if self.front < desired_distance + 0.1:
                 # wall ahead turning left
                 vel_msg.angular.z = -0.8
-                vel_msg.linear.x = -0.05
+                vel_msg.linear.x = -0.00
             elif self.left > 5.0:
                 # no wall on right turning right
-                vel_msg.angular.z = 0.6
+                vel_msg.angular.z = 0.55
                 vel_msg.linear.x = 0.1
             else:
                 vel_msg.linear.x = 0.3

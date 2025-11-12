@@ -57,7 +57,7 @@ class LeaderClass(Node):
 
         self.get_logger().info('Sending initial goals to both robots...')
         self.send_goal(wall_a, 'tb3_0', follow_right=True)
-        self.send_goal(wall_b, 'tb3_1', follow_right=False)
+        self.send_goal(wall_b, 'tb3_1', follow_right=True)
 
 
     def send_request_wallpoints(self):
@@ -125,7 +125,7 @@ class LeaderClass(Node):
         other_wall = self.current_walls[other_robot]
 
         # Flip direction for this new wall
-        follow_right = not (robot_ns == 'tb3_0')
+        follow_right =  False
 
         # Send new goal to this robot
         self.get_logger().info(f'{robot_ns} now exploring {other_robot}\'s wall (follow_right={follow_right})')

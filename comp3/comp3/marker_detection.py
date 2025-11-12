@@ -34,11 +34,13 @@ class MarkerDetection(Node):
         self.prev_marker_id_0 = -1
         self.marker_id_0 = 1000
         self.marker_position_0 = Point()
+        self.prev_marker_position_0 = Point()
 
         #------------------ Variables for tb3_1 ------------------
         self.prev_marker_id_1 = -1
         self.marker_id_1 = 1000
         self.marker_position_1 = Point()
+        self.prev_marker_position_1 = Point()
 
         # Timer to check markers once per second
         timer_period = 1.0  # seconds
@@ -61,7 +63,7 @@ class MarkerDetection(Node):
     #------------------ Timer callback ------------------
     def timer_callback(self):
         # Check tb3_0
-        if self.marker_id_0 > 4:
+        if self.marker_id_0 > 4 or abs(self.marker_position_0.x-self.prev_marker_position_0.x) < 0.1 or abs(self.marker_position_0.y - self.prev_marker_position_0.y) < 0.1:
             return
         
         # send request to set marker position service
@@ -70,18 +72,22 @@ class MarkerDetection(Node):
         request.marker_position = self.marker_position_0
         self.cli_set_marker_position.call_async(request)
 
+        self.prev_marker_position_0 = self.marker_position_0
+
         self.get_logger().info(f"[tb3_0] marker_id: {self.marker_id_0}")
         self.get_logger().info(f"[tb3_0] marker_position: {self.marker_position_0}")
         # self.prev_marker_id_0 = self.marker_id_0
 
         # Check tb3_1
-        if self.marker_id_1 > 4:
+        if self.marker_id_1 > 4 or abs(self.marker_position_1.x - self.prev_marker_position_1.x) < 0.1 or abs(self.marker_position_1.y - self.prev_marker_position_1.y) < 0.1:
             return
         # send request to set marker position service
         request = SetMarkerPosition.Request()
         request.marker_id = self.marker_id_1
         request.marker_position = self.marker_position_1
         self.cli_set_marker_position.call_async(request)
+
+        self.prev_marker_position_1 = self.marker_position_1
         
         self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")
         self.get_logger().info(f"[tb3_1] marker_position: {self.marker_position_1}")

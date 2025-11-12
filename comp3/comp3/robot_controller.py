@@ -73,6 +73,13 @@ class RobotController(Node):
 
     def execute_callback(self, goal_handle):
         self.get_logger().info("Starting action execution")
+
+        # Reset events for this new goal
+        self._bug2_goal_accepted_event.clear()
+        self._bug2_result_event.clear()
+        self._bug2_goal_handle = None
+        self._bug2_result = None
+
         result = ExploreWall.Result()
         wall = goal_handle.request.wall_points.points
         follow_right = goal_handle.request.follow_right
