@@ -90,26 +90,23 @@ class LeaderClass(Node):
 
     
     def send_goals_to_robots(self):
-        if len(self.wall_segments) < len(self.robot_namespaces):
-            self.get_logger().error(
-                f'Expected at least {len(self.robot_namespaces)} wall segments, '
-                f'but received {len(self.wall_segments)}.'
-            )
+        num_walls = len(self.wall_segments)
+        num_robots = len(self.robot_namespaces)
+
+        if num_walls == 0:
+            self.get_logger().error('No wall segments received. Cannot send goals.')
             return
 
-        # only use the first two walls for simplicity
-        wall_a = self.wall_segments[0]
-        wall_b = self.wall_segments[1]
+        # Assign walls to robots, repeat last wall if not enough
+        self.current_walls = {}
+        for i, ns in enumerate(self.robot_namespaces):
+            wall_index = min(i, num_walls - 1)  # if fewer walls than robots, repeat last wall
+            self.current_walls[ns] = self.wall_segments[wall_index]
 
-        # initial assignment
-        self.current_walls = {
-            'tb3_0': wall_a,
-            'tb3_1': wall_b
-        }
+        self.get_logger().info('Sending initial goals to robots...')
+        for ns, wall in self.current_walls.items():
+            self.send_goal(wall, ns, follow_right=True)
 
-        self.get_logger().info('Sending initial goals to both robots...')
-        self.send_goal(wall_a, 'tb3_0', follow_right=True)
-        self.send_goal(wall_b, 'tb3_1', follow_right=True)
 
 
     def send_request_wallpoints(self):
@@ -126,9 +123,18 @@ class LeaderClass(Node):
                 self.get_logger().info(
                     f'Received {len(self.wall_segments)} wall segments on attempt {attempt + 1}'
                 )
+
+                # drop segments under threshold
+                threshold = 10
+                self.wall_segments = [
+                    segment for segment in self.wall_segments
+                    if len(segment.points) >= threshold
+                ]
+
                 # log wall segment sizes
                 for i, segment in enumerate(self.wall_segments):
                     self.get_logger().info(f'Wall segment {i} size: {len(segment.points)} points')
+
                 return True
 
             self.get_logger().warn(

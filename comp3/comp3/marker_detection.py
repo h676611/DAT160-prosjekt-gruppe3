@@ -49,13 +49,20 @@ class MarkerDetection(Node):
         self.marker_position_1 = Point()
         self.prev_marker_position_1 = Point()
 
-
-        self.hasSentID4pos = False
+        self.id4_buffer_0 = []         # Buffer for tb3_0 ID4
+        self.id4_buffer_1 = []         # Buffer for tb3_1 ID4
+        self.buffer_size = 5            # Number of frames to average over
+        self.stable_id_threshold = 3    # Minimum number of detections to consider stable
+        self.hasSentID4pos_0 = False
+        self.hasSentID4pos_1 = False
+        self.prev_id4_position_0 = Point()
+        self.prev_id4_position_1 = Point()
 
         # Timer to check markers once per second
         timer_period = 0.1  # seconds
-        self.timer = self.create_timer(timer_period, self.timer_callback_tb3_0)
-        self.timer = self.create_timer(timer_period, self.timer_callback_tb3_1)
+        self.timer_tb3_0 = self.create_timer(timer_period, self.timer_callback_tb3_0)
+        self.timer_tb3_1 = self.create_timer(timer_period, self.timer_callback_tb3_1)
+
 
     #------------------ Callbacks for tb3_0 ------------------
     def clbk_marker_map_pose_0(self, msg):
@@ -73,65 +80,70 @@ class MarkerDetection(Node):
 
     #------------------ Timer callback ------------------
     def timer_callback_tb3_0(self):
-        # Check tb3_0
-        if self.marker_id_0 > 4 or abs(self.marker_position_0.x-self.prev_marker_position_0.x) < 0.1 or abs(self.marker_position_0.y - self.prev_marker_position_0.y) < 0.1:
-            return
+        if self.marker_id_0 <= 4:
+            # Always report to scoring service
+            request = SetMarkerPosition.Request()
+            request.marker_id = self.marker_id_0
+            request.marker_position = self.marker_position_0
+            self.cli_set_marker_position.call_async(request)
 
-        if not self.hasSentID4pos:
-            self.get_logger().info("Sending SetID4pos for tb3_0")
-            req = SetID4pos.Request()
-            req.point = self.marker_position_0
-            req.robot_number = 0
-            self.setID4pos_srv.call_async(req)
-            self.hasSentID4pos = True
+        # Only buffer ID4 for leader
+        if self.marker_id_0 == 4:
+            self.id4_buffer_0.append(self.marker_position_0)
+            if len(self.id4_buffer_0) > self.buffer_size:
+                self.id4_buffer_0.pop(0)
 
-        
-        # send request to set marker position service
-        request = SetMarkerPosition.Request()
-        request.marker_id = self.marker_id_0
-        request.marker_position = self.marker_position_0
-        self.cli_set_marker_position.call_async(request)
+            # Check if we have enough frames for stable position
+            if len(self.id4_buffer_0) >= self.stable_id_threshold:
+                avg_pose = Point()
+                avg_pose.x = sum(p.x for p in self.id4_buffer_0) / len(self.id4_buffer_0)
+                avg_pose.y = sum(p.y for p in self.id4_buffer_0) / len(self.id4_buffer_0)
+                avg_pose.z = sum(p.z for p in self.id4_buffer_0) / len(self.id4_buffer_0)
 
-        self.prev_marker_position_0 = self.marker_position_0
+                # Only send if moved enough from previous
+                delta_sq = (avg_pose.x - self.prev_id4_position_0.x)**2 + (avg_pose.y - self.prev_id4_position_0.y)**2
+                if delta_sq > 0.0025 and not self.hasSentID4pos_0:
+                    self.get_logger().info("Sending stable SetID4pos for tb3_0")
+                    req = SetID4pos.Request()
+                    req.point = avg_pose
+                    req.robot_number = 0
+                    self.setID4pos_srv.call_async(req)
+                    self.hasSentID4pos_0 = True
 
-        self.get_logger().info(f"[tb3_0] marker_id: {self.marker_id_0}")
-        self.get_logger().info(f"[tb3_0] marker_position: {self.marker_position_0}")
+                self.prev_id4_position_0 = avg_pose
 
     def timer_callback_tb3_1(self):
-        # Check tb3_1
-        if self.marker_id_1 > 4 or abs(self.marker_position_1.x - self.prev_marker_position_1.x) < 0.1 or abs(self.marker_position_1.y - self.prev_marker_position_1.y) < 0.1:
-            return
+        if self.marker_id_1 <= 4:
+            # Always report to scoring service
+            request = SetMarkerPosition.Request()
+            request.marker_id = self.marker_id_1
+            request.marker_position = self.marker_position_1
+            self.cli_set_marker_position.call_async(request)
 
-        if not self.hasSentID4pos:
-            self.get_logger().info("Sending SetID4pos for tb3_1")
-            req = SetID4pos.Request()
-            req.point = self.marker_position_1
-            req.robot_number = 1
-            self.setID4pos_srv.call_async(req)
-            self.hasSentID4pos = True
+        # Only buffer ID4 for leader
+        if self.marker_id_1 == 4:
+            self.id4_buffer_1.append(self.marker_position_1)
+            if len(self.id4_buffer_1) > self.buffer_size:
+                self.id4_buffer_1.pop(0)
 
-        # send request to set marker position service
-        request = SetMarkerPosition.Request()
-        request.marker_id = self.marker_id_1
-        request.marker_position = self.marker_position_1
-        self.cli_set_marker_position.call_async(request)
+            # Check if we have enough frames for stable position
+            if len(self.id4_buffer_1) >= self.stable_id_threshold:
+                avg_pose = Point()
+                avg_pose.x = sum(p.x for p in self.id4_buffer_1) / len(self.id4_buffer_1)
+                avg_pose.y = sum(p.y for p in self.id4_buffer_1) / len(self.id4_buffer_1)
+                avg_pose.z = sum(p.z for p in self.id4_buffer_1) / len(self.id4_buffer_1)
 
-        self.prev_marker_position_1 = self.marker_position_1
+                # Only send if moved enough from previous
+                delta_sq = (avg_pose.x - self.prev_id4_position_1.x)**2 + (avg_pose.y - self.prev_id4_position_1.y)**2
+                if delta_sq > 0.0025 and not self.hasSentID4pos_1:
+                    self.get_logger().info("Sending stable SetID4pos for tb3_1")
+                    req = SetID4pos.Request()
+                    req.point = avg_pose
+                    req.robot_number = 0
+                    self.setID4pos_srv.call_async(req)
+                    self.hasSentID4pos_1 = True
 
-        self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")
-        self.get_logger().info(f"[tb3_1] marker_position: {self.marker_position_1}")
-
-        
-        # send request to set marker position service
-        request = SetMarkerPosition.Request()
-        request.marker_id = self.marker_id_1
-        request.marker_position = self.marker_position_1
-        self.cli_set_marker_position.call_async(request)
-
-        self.prev_marker_position_1 = self.marker_position_1
-
-        self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")
-        self.get_logger().info(f"[tb3_1] marker_position: {self.marker_position_1}")
+                self.prev_id4_position_1 = avg_pose
 
         
 

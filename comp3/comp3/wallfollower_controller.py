@@ -89,10 +89,10 @@ class WallfollowerController(Node):
         if self.position is None or self.other_robot_position is None:
             return
         
-        if self.distance(self.position, self.other_robot_position) < 0.3 and self.get_namespace() == '/tb3_1':
+        if self.distance(self.position, self.other_robot_position) < 0.3:
             vel_msg = Twist()
             vel_msg.linear.x = -0.1
-            vel_msg.angular.z = 0.0
+            vel_msg.angular.z = 0.2
             self.pub.publish(vel_msg)
             return
 
