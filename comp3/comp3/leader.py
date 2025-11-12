@@ -34,7 +34,6 @@ class LeaderClass(Node):
 
         self.robot_wall_progress = {ns: 0 for ns in self.robot_namespaces}
 
-        self.goal_handles = {}
 
 
         while not self.wall_segments_cli.wait_for_service(timeout_sec=1.0):
@@ -42,7 +41,8 @@ class LeaderClass(Node):
         self.wall_segments_req = SetWallpoints.Request()
 
         if self.send_request_wallpoints():
-            self.send_goals_to_robots()
+            self.send_goal(self.wall_segments[0], 'tb3_0', follow_right=True)
+            self.send_goal(self.wall_segments[1], 'tb3_1', follow_right=False)
         else:
             self.get_logger().error('Unable to fetch wall segments; goals will not be sent.')
 
@@ -87,25 +87,6 @@ class LeaderClass(Node):
 
         return response
 
-
-    
-    def send_goals_to_robots(self):
-        num_walls = len(self.wall_segments)
-        num_robots = len(self.robot_namespaces)
-
-        if num_walls == 0:
-            self.get_logger().error('No wall segments received. Cannot send goals.')
-            return
-
-        # Assign walls to robots, repeat last wall if not enough
-        self.current_walls = {}
-        for i, ns in enumerate(self.robot_namespaces):
-            wall_index = min(i, num_walls - 1)  # if fewer walls than robots, repeat last wall
-            self.current_walls[ns] = self.wall_segments[wall_index]
-
-        self.get_logger().info('Sending initial goals to robots...')
-        for ns, wall in self.current_walls.items():
-            self.send_goal(wall, ns, follow_right=ns == 'tb3_0')
 
 
 
@@ -175,19 +156,16 @@ class LeaderClass(Node):
     def get_result_callback(self, future, robot_ns):
         self.get_logger().info(f'{robot_ns} finished exploring its wall.')
 
-        # Determine the other robot's namespace
-        other_robot = [r for r in self.robot_namespaces if r != robot_ns][0]
-        other_wall = self.current_walls[other_robot]
+        if robot_ns == 'tb3_0':
+            next_segment_index = 1
+            follow_right = True
+            self.send_goal(self.wall_segments[next_segment_index], robot_ns, follow_right)
+        elif robot_ns == 'tb3_1':
+            next_segment_index = 0
+            follow_right = False
+            self.send_goal(self.wall_segments[next_segment_index], robot_ns, follow_right)
 
-        # Flip direction for this new wall
-        follow_right =  False
-
-        # Send new goal to this robot
-        self.get_logger().info(f'{robot_ns} now exploring {other_robot}\'s wall (follow_right={follow_right})')
-        self.send_goal(other_wall, robot_ns, follow_right)
-
-        # Update the tracking dictionary
-        self.current_walls[robot_ns] = other_wall
+            
 
 
 

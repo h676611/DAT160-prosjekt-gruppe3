@@ -7,9 +7,6 @@ from ament_index_python.packages import get_package_share_directory
 import os
 
 
-from launch.event_handlers import OnProcessStart
-from launch.actions import RegisterEventHandler
-
 
 
 def generate_launch_description():
@@ -83,7 +80,7 @@ def generate_launch_description():
         launch_arguments={
             'namespace': 'tb3_2',
             'x': '-0.5',
-            'y': '0.0',
+            'y': '-0.5',
             'use_sim_time': 'false'
         }.items()
     )
