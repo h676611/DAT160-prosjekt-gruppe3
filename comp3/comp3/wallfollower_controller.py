@@ -22,14 +22,14 @@ class WallfollowerController(Node):
 
         self.odom_sub = self.create_subscription(Odometry, 'odom', self.clbk_odom, 10)
         self.position = None
-
+        self.other_namespace = None
         current_namespace = self.get_namespace()[-1]
         if current_namespace == '1':
-            other_namespace = 'tb3_0'
+            self.other_namespace = 'tb3_0'
         else:
-            other_namespace = 'tb3_1'
+            self.other_namespace = 'tb3_1'
 
-        self.other_odom_sub = self.create_subscription(Odometry, f'/{other_namespace}/odom', self.clbk_other_odom, 10)
+        self.other_odom_sub = self.create_subscription(Odometry, f'/{self.other_namespace}/odom', self.clbk_other_odom, 10)
 
         self.other_robot_position = None
 
@@ -89,12 +89,14 @@ class WallfollowerController(Node):
         if self.position is None or self.other_robot_position is None:
             return
         
-        if self.distance(self.position, self.other_robot_position) < 0.3:
-            vel_msg = Twist()
-            vel_msg.linear.x = -0.1
-            vel_msg.angular.z = 0.2
-            self.pub.publish(vel_msg)
-            return
+        if self.distance(self.position, self.other_robot_position) < 0.4:
+            if self.get_namespace() > self.other_namespace:
+                # lower-priority robot yields
+                vel_msg = Twist()
+                vel_msg.linear.x = 0.0
+                vel_msg.angular.z = 0.3  # rotate in place
+                self.pub.publish(vel_msg)
+                return
 
         vel_msg = Twist()
 

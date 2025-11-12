@@ -142,7 +142,7 @@ class Bug2Controller(Node):
             self.get_logger().info("Waiting for goal point")
             return
         
-        if self.distance(self.position, self.goal) < 0.5:
+        if self.distance(self.position, self.goal) < 0.6:
             self.atGoal = True
             return
 
