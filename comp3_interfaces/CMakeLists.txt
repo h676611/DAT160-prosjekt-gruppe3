@@ -10,6 +10,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Switch.srv"
   "srv/SetWallpoints.srv"
   "srv/Wallfollow.srv"
+  "srv/SetID4pos.srv"
   "action/GoToPoint.action"
   "action/ExploreWall.action"
   DEPENDENCIES geometry_msgs

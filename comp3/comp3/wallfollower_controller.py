@@ -4,6 +4,7 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 import math
 from comp3_interfaces.srv import Wallfollow
+from nav_msgs.msg import Odometry
 import numpy as np
 
 
@@ -18,6 +19,20 @@ class WallfollowerController(Node):
 
         self.srv = self.create_service(Wallfollow, 'wall_follow', self.clbk_wall_follow)
 
+
+        self.odom_sub = self.create_subscription(Odometry, 'odom', self.clbk_odom, 10)
+        self.position = None
+
+        current_namespace = self.get_namespace()[-1]
+        if current_namespace == '1':
+            other_namespace = 'tb3_0'
+        else:
+            other_namespace = 'tb3_1'
+
+        self.other_odom_sub = self.create_subscription(Odometry, f'/{other_namespace}/odom', self.clbk_other_odom, 10)
+
+        self.other_robot_position = None
+
         self.active = False
         self.follow_right = False
 
@@ -28,6 +43,12 @@ class WallfollowerController(Node):
         timer_period = 0.05  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback) 
 
+    def clbk_odom(self, msg):
+        self.position = msg.pose.pose.position
+
+    def clbk_other_odom(self, msg):
+        self.other_robot_position = msg.pose.pose.position
+        
 
     def clbk_wall_follow(self, request, response):
 
@@ -51,6 +72,11 @@ class WallfollowerController(Node):
         self.right = msg.ranges[315] # 45 degrees right of front
         self.left = msg.ranges[45]
 
+    def distance(self, pos1, pos2):
+        dx = pos1.x - pos2.x
+        dy = pos1.y - pos2.y
+        return math.sqrt(dx**2 + dy**2)
+
        
     def timer_callback(self):
 
@@ -60,17 +86,27 @@ class WallfollowerController(Node):
         if self.right == 100.0:
             return
         
+        if self.position is None or self.other_robot_position is None:
+            return
+        
+        if self.distance(self.position, self.other_robot_position) < 0.3 and self.get_namespace() == '/tb3_1':
+            vel_msg = Twist()
+            vel_msg.linear.x = -0.1
+            vel_msg.angular.z = 0.0
+            self.pub.publish(vel_msg)
+            return
+
         vel_msg = Twist()
 
-        desired_distance = 0.45
-        hyp = 0.4
+        desired_distance = 0.5
+        hyp = 0.43
 
         if self.follow_right:
             error = abs(self.right - hyp)
             if self.front < desired_distance + 0.1:
                 # wall ahead turning left
                 vel_msg.angular.z = 0.8
-                vel_msg.linear.x = -0.00
+                vel_msg.linear.x = -0.01
             elif self.right > 5.0:
                 # no wall on right turning right
                 vel_msg.angular.z = -0.55
@@ -88,12 +124,13 @@ class WallfollowerController(Node):
                 else:
                     # desired distance to wall go forward
                     vel_msg.angular.z = 0.0
+                    vel_msg.linear.x = 0.5
         else:
             error = abs(self.left - hyp)
             if self.front < desired_distance + 0.1:
                 # wall ahead turning left
                 vel_msg.angular.z = -0.8
-                vel_msg.linear.x = -0.00
+                vel_msg.linear.x = -0.01
             elif self.left > 5.0:
                 # no wall on right turning right
                 vel_msg.angular.z = 0.55
@@ -111,6 +148,7 @@ class WallfollowerController(Node):
                 else:
                     # desired distance to wall go forward
                     vel_msg.angular.z = 0.0
+                    vel_msg.linear.x = 0.5
 
 
 

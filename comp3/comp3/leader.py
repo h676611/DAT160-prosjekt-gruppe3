@@ -6,6 +6,7 @@ from comp3_interfaces.srv import SetWallpoints
 from comp3_interfaces.msg import PointArray
 from geometry_msgs.msg import PointStamped
 import time
+from comp3_interfaces.srv import SetID4pos
 
 class LeaderClass(Node):
     def __init__(self):
@@ -18,13 +19,18 @@ class LeaderClass(Node):
             for ns in self.robot_namespaces
         }
 
+        self.ID4pos_service = self.create_service(SetID4pos,'set_id_4_pos', self.clbk_set_id_4_pos)
+
+        self.ID4pos = None
+
         self.wall_segments_cli = self.create_client(SetWallpoints, '/wallpoints')
 
-        self.click_sub = self.create_subscription(PointStamped, '/clicked_point', self.point_clbck, 10)
 
         self.wall_segments = []
 
         self.robot_wall_progress = {ns: 0 for ns in self.robot_namespaces}
+
+        self.goal_handles = {}
 
 
         while not self.wall_segments_cli.wait_for_service(timeout_sec=1.0):
@@ -35,6 +41,14 @@ class LeaderClass(Node):
             self.send_goals_to_robots()
         else:
             self.get_logger().error('Unable to fetch wall segments; goals will not be sent.')
+    
+    def clbk_set_id_4_pos(self, request, response):
+        self.get_logger().info(f"SetID4pos request received: id={request.point}, robot_number={request.robot_number}")
+        self.ID4pos = request.point
+        response.success = True
+        return response
+
+
 
     
     def send_goals_to_robots(self):
@@ -99,9 +113,6 @@ class LeaderClass(Node):
 
         rclpy.shutdown()
 
-    def point_clbck(self, msg):
-        new_target = msg.point
-        self.get_logger().info(f"New goal received: x={new_target.x:.2f}, y={new_target.y:.2f}")
 
     def goal_response_callback(self, future, robot_ns):
         goal_handle = future.result()

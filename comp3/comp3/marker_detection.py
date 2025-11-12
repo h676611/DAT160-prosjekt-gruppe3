@@ -3,10 +3,17 @@ from rclpy.node import Node
 from std_msgs.msg import Int64
 from geometry_msgs.msg import Pose, Point
 from scoring_interfaces.srv import SetMarkerPosition
+from comp3_interfaces.srv import SetID4pos
 
 class MarkerDetection(Node):
     def __init__(self):
         super().__init__('marker_detection')
+
+        # service to set marker position
+        self.setID4pos_srv = self.create_client(SetID4pos,'set_id_4_pos')
+        while not self.setID4pos_srv.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('service not available, waiting again...')
+        self.setID4pos_req = SetID4pos.Request()
 
         #------------------ Subscriptions for tb3_0 ------------------
         self.sub_marker_pose_0 = self.create_subscription(
@@ -43,7 +50,7 @@ class MarkerDetection(Node):
         self.prev_marker_position_1 = Point()
 
         # Timer to check markers once per second
-        timer_period = 1.0  # seconds
+        timer_period = 0.1  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     #------------------ Callbacks for tb3_0 ------------------
@@ -92,6 +99,19 @@ class MarkerDetection(Node):
         self.get_logger().info(f"[tb3_1] marker_id: {self.marker_id_1}")
         self.get_logger().info(f"[tb3_1] marker_position: {self.marker_position_1}")
         # self.prev_marker_id_1 = self.marker_id_1
+
+        if self.marker_id_0 == 4:
+            # send request to setID4pos service
+            self.setID4pos_req.point = self.marker_position_0
+            self.setID4pos_req.robot_number = 0
+            future = self.setID4pos_srv.call_async(self.setID4pos_req)
+        
+        if self.marker_id_1 == 4:
+            # send request to setID4pos service
+            self.setID4pos_req.point = self.marker_position_1
+            self.setID4pos_req.robot_number = 1
+            future = self.setID4pos_srv.call_async(self.setID4pos_req)
+        
 
 
 def main(args=None):
