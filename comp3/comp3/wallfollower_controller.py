@@ -8,162 +8,161 @@ from nav_msgs.msg import Odometry
 import numpy as np
 
 
-
 class WallfollowerController(Node):
     def __init__(self):
-        Node.__init__(self, node_name="wallfollower_controller")
+        super().__init__("wallfollower_controller")
 
+        # --- Subscriptions & publishers ---
         self.sub = self.create_subscription(LaserScan, 'scan', self.clbk_laser, 10)
-
         self.pub = self.create_publisher(Twist, 'cmd_vel', 10)
-
         self.srv = self.create_service(Wallfollow, 'wall_follow', self.clbk_wall_follow)
-
-
         self.odom_sub = self.create_subscription(Odometry, 'odom', self.clbk_odom, 10)
+
         self.position = None
-        self.other_namespace = None
-        current_namespace = self.get_namespace()[-1]
-        if current_namespace == '1':
-            self.other_namespace = 'tb3_0'
-        else:
-            self.other_namespace = 'tb3_1'
+        self.other_robot_positions = {}
 
-        self.other_odom_sub = self.create_subscription(Odometry, f'/{self.other_namespace}/odom', self.clbk_other_odom, 10)
+        # Detect current namespace (e.g., "/tb3_0")
+        self.current_namespace = self.get_namespace().strip('/') or 'tb3_0'
 
-        self.other_robot_position = None
+        # Subscribe to all robots’ odometry except self
+        for ns in ['tb3_0', 'tb3_1', 'tb3_2']:
+            if ns != self.current_namespace:
+                self.create_subscription(Odometry, f'/{ns}/odom',
+                                         lambda msg, ns=ns: self.clbk_other_odom(msg, ns), 10)
 
+        # --- Behavior state ---
         self.active = False
-        self.follow_right = False
+        self.follow_right = False  # If False, follow left wall
 
+        # --- Lidar values ---
         self.front = 100.0
         self.right = 100.0
         self.left = 100.0
 
-        timer_period = 0.05  # seconds
-        self.timer = self.create_timer(timer_period, self.timer_callback) 
+        # --- Control parameters ---
+        self.desired_distance = 0.6
+        self.wall_distance_target = 0.55
+        self.distance_threshold = 0.02
+        self.collision_distance = 0.4
 
+        # --- Timer ---
+        self.timer = self.create_timer(0.05, self.timer_callback)
+
+    # -------------------------------------------------------
+    # ROS CALLBACKS
+    # -------------------------------------------------------
     def clbk_odom(self, msg):
         self.position = msg.pose.pose.position
 
-    def clbk_other_odom(self, msg):
-        self.other_robot_position = msg.pose.pose.position
-        
+    def clbk_other_odom(self, msg, ns):
+        self.other_robot_positions[ns] = msg.pose.pose.position
 
     def clbk_wall_follow(self, request, response):
-
-        if request.activate == False:
-            vel_msg = Twist()
-            vel_msg.linear.x = 0.0
-            vel_msg.angular.z = 0.0
-            self.pub.publish(vel_msg)
-
         self.active = request.activate
         self.follow_right = request.follow_right
+
+        if not request.activate:
+            self.pub.publish(Twist())  # Stop
         response.success = True
         return response
 
-
-    #Callback function for the Turtlebots Lidar topic /scan
     def clbk_laser(self, msg):
-        values = np.concatenate((msg.ranges[345:], msg.ranges[:16]))  # 350–364 + 0–10
-        max_val = np.min(values)
-        self.front = max_val 
-        self.right = msg.ranges[315] # 45 degrees right of front
+        # Average readings in small sectors to smooth noise
+        front_sector = np.concatenate((msg.ranges[345:], msg.ranges[:16]))
+        self.front = np.min(front_sector)
+        self.right = msg.ranges[315]
         self.left = msg.ranges[45]
 
+    # -------------------------------------------------------
+    # HELPER METHODS
+    # -------------------------------------------------------
     def distance(self, pos1, pos2):
-        dx = pos1.x - pos2.x
-        dy = pos1.y - pos2.y
+        dx, dy = pos1.x - pos2.x, pos1.y - pos2.y
         return math.sqrt(dx**2 + dy**2)
+    
+    def too_close_to_other_robot(self):
+        """Return (namespace, distance) of closest robot if within threshold, else (None, None)."""
+        if self.position is None or not self.other_robot_positions:
+            return None, None
 
-       
-    def timer_callback(self):
+        closest_ns = None
+        closest_dist = float('inf')
 
-        if not self.active:
-            return
+        for ns, pos in self.other_robot_positions.items():
+            if pos is None:
+                continue
+            d = self.distance(self.position, pos)
+            if d < closest_dist:
+                closest_dist = d
+                closest_ns = ns
 
-        if self.right == 100.0:
-            return
-        
-        if self.position is None or self.other_robot_position is None:
-            return
-        
-        if self.distance(self.position, self.other_robot_position) < 0.4:
-            if self.get_namespace() > self.other_namespace:
-                # lower-priority robot yields
-                vel_msg = Twist()
-                vel_msg.linear.x = 0.0
-                vel_msg.angular.z = 0.3  # rotate in place
-                self.pub.publish(vel_msg)
-                return
-
-        vel_msg = Twist()
-
-        desired_distance = 0.6
-        hyp = 0.55
-
-        if self.follow_right:
-            error = abs(self.right - hyp)
-            if self.front < desired_distance + 0.1:
-                # wall ahead turning left
-                vel_msg.angular.z = 0.8
-                vel_msg.linear.x = -0.01
-            elif self.right > 5.0:
-                # no wall on right turning right
-                vel_msg.angular.z = -0.5
-                vel_msg.linear.x = 0.1 
-            else:
-                vel_msg.linear.x = 0.3
-                if error > 0.02:
-                    if self.right < hyp:
-                        # too close to wall turning left
-                        vel_msg.angular.z = min(0.7, 1.3 * error)
-                    else:
-                        # too far away from wall turning right
-                        vel_msg.angular.z = -min( 0.7, 1.3 * error)
-                    vel_msg.linear.x = max(0.3, 0.15 * (1 - abs(vel_msg.angular.z)/0.7))
-                else:
-                    # desired distance to wall go forward
-                    vel_msg.angular.z = 0.0
-                    vel_msg.linear.x = 0.5
+        if closest_ns and closest_dist < self.collision_distance:
+            return closest_ns, closest_dist
         else:
-            error = abs(self.left - hyp)
-            if self.front < desired_distance + 0.1:
-                # wall ahead turning left
-                vel_msg.angular.z = -0.8
-                vel_msg.linear.x = -0.01
-            elif self.left > 5.0:
-                # no wall on right turning right
-                vel_msg.angular.z = 0.5
-                vel_msg.linear.x = 0.1
+            return None, None
+
+
+    # -------------------------------------------------------
+    # MAIN CONTROL LOGIC
+    # -------------------------------------------------------
+    def wall_follow_logic(self):
+        """Unified wall-following logic for both left/right sides."""
+        vel = Twist()
+
+        # Choose side: right = 1, left = -1 (flips angular direction)
+        side = 1 if self.follow_right else -1
+        wall_distance = self.right if self.follow_right else self.left
+
+        # Stop if too close to obstacle in front
+        if self.front < self.desired_distance + 0.1:
+            vel.angular.z = 0.8 * side  # turn away from wall
+            vel.linear.x = -0.01
+            return vel
+
+        # Turn toward wall if no wall detected
+        if wall_distance > 5.0:
+            vel.angular.z = -0.5 * side
+            vel.linear.x = 0.1
+            return vel
+
+        # Compute proportional correction based on wall distance
+        error = wall_distance - self.wall_distance_target
+        if abs(error) > self.distance_threshold:
+            vel.angular.z = -side * min(0.7, 1.3 * abs(error)) * math.copysign(1, error)
+            vel.linear.x = max(0.4, 0.15 * (1 - abs(vel.angular.z) / 0.7))
+        else:
+            vel.angular.z = 0.0
+            vel.linear.x = 0.5
+
+        return vel
+
+    # -------------------------------------------------------
+    # TIMER LOOP
+    # -------------------------------------------------------
+    def timer_callback(self):
+        if not self.active or self.right == 100.0 or self.position is None:
+            return
+
+        # Collision avoidance
+        ns, too_close = self.too_close_to_other_robot()
+        if too_close:
+            if self.get_namespace().strip('/') < ns:
+                self.get_logger().info(f"Too close to {ns}, yielding.")
+                vel = Twist()  # Stop
+                self.pub.publish(vel)
+                return
             else:
-                vel_msg.linear.x = 0.3
-                if error > 0.02:
-                    if self.left < hyp:
-                        # too close to wall turning left
-                        vel_msg.angular.z = -min(0.7, 1.3 * error)
-                    else:
-                        # too far away from wall turning right
-                        vel_msg.angular.z = min( 0.7, 1.3 * error)
-                    vel_msg.linear.x = max(0.3, 0.15 * (1 - abs(vel_msg.angular.z)/0.7))
-                else:
-                    # desired distance to wall go forward
-                    vel_msg.angular.z = 0.0
-                    vel_msg.linear.x = 0.5
+                self.get_logger().info(f"Too close to {ns}, proceeding.")
 
-
-
-        self.pub.publish(vel_msg)
+        # Wall following
+        vel = self.wall_follow_logic()
+        self.pub.publish(vel)
 
 
 def main(args=None):
     rclpy.init(args=args)
-
     controller = WallfollowerController()
-
     rclpy.spin(controller)
-
     controller.destroy_node()
     rclpy.shutdown()
 
