@@ -18,6 +18,15 @@ class MarkerDetection(Node):
         while not self.cli_set_marker_position.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Waiting for set_marker_position service...')
 
+
+        self.marker_dict = {
+            0: False,
+            1: False,
+            2: False,
+            3: False,
+            4: False
+        }
+
         # ----------- Configuration -----------
         self.buffer_size = 5
         self.stable_id_threshold = 3
@@ -39,10 +48,14 @@ class MarkerDetection(Node):
             self.create_subscription(Int64, f'/{ns}/marker_id',
                                      lambda msg, ns=ns: self.clbk_marker_id(msg, ns), 10)
             self.create_timer(0.1, lambda ns=ns: self.timer_callback(ns))
+        
+        self.marker_last_seen_time = {ns: 0.0 for ns in self.robots}
 
     # ----------- Callback functions -----------
     def clbk_marker_map_pose(self, msg, ns):
         self.marker_position[ns] = msg.position
+        self.marker_last_seen_time[ns] = self.get_clock().now().nanoseconds / 1e9  # seconds
+
 
     def clbk_marker_id(self, msg, ns):
         self.marker_id[ns] = msg.data
@@ -52,12 +65,29 @@ class MarkerDetection(Node):
         current_id = self.marker_id[ns]
         current_pos = self.marker_position[ns]
 
-        # Always report IDs <= 4
-        if current_id <= 4:
+        current_time = self.get_clock().now().nanoseconds / 1e9
+
+
+        if current_id <= 4 and not self.marker_dict[current_id] and current_time - self.marker_last_seen_time[ns] < 1.0:
             req = SetMarkerPosition.Request()
             req.marker_id = current_id
             req.marker_position = current_pos
-            self.cli_set_marker_position.call_async(req)
+            future = self.cli_set_marker_position.call_async(req)
+
+            def callback(fut, ns=ns, marker_id=current_id):
+                try:
+                    result = fut.result()
+                    if result.accepted:
+                        self.get_logger().info(f"[{ns}] Marker ID {marker_id} accepted by scoring system.")
+                        self.marker_dict[marker_id] = True  # only update on acceptance
+                    else:
+                        self.get_logger().warn(f"[{ns}] Marker ID {marker_id} rejected by scoring system.")
+                except Exception as e:
+                    self.get_logger().error(f"[{ns}] Service call failed: {e}")
+
+            future.add_done_callback(callback)
+
+
 
         # Buffer ID4 positions for stability
         if current_id == 4:

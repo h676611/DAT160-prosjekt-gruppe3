@@ -233,32 +233,34 @@ class Bug2Controller(Node):
     def create_goal_marker(self):
         self.get_logger().info('Creating goal marker')
         self.marker_msg = Marker()
-        #Defines the transformation frame with which the following data is associated
         self.marker_msg.header.frame_id = "/map"
-        #Defines the current time in ros time
         self.marker_msg.header.stamp = self.get_clock().now().to_msg()
-        #Assign a unique marker id
         self.marker_msg.id = 0
-        #Define the type of oject that is displayed
         self.marker_msg.type = Marker.POINTS
-        #Define the action that is taken
         self.marker_msg.action = Marker.ADD
-        #Define part of the orientation of the object displayed in rviz
-        self.marker_msg.pose.orientation.w =1.0
-        # Defines the size of the marker (in meters) displayed in rviz
-        self.marker_msg.scale.x=0.1
-        self.marker_msg.scale.y=0.1
-        # Define the color (red, green and blue from 0-1) and the opacity (alpha from 0-1)
-        self.marker_msg.color.r = 255.0/255.0
-        self.marker_msg.color.g = 0.0/255.0
-        self.marker_msg.color.b = 0.0/255.0
-        self.marker_msg.color.a = 1.0
-        #Define how long the object should last before being automatically deleted, where 0 indicates forever
+        self.marker_msg.pose.orientation.w = 1.0
+        self.marker_msg.scale.x = 0.1
+        self.marker_msg.scale.y = 0.1
         self.marker_msg.lifetime = rclpy.duration.Duration().to_msg()
-
         self.marker_msg.points.clear()
         self.marker_msg.points.append(self.goal)
+
+        # --- Assign bright colors based on namespace ---
+        namespace_colors = {
+            '/tb3_0': (1.0, 0.0, 0.0),  # red
+            '/tb3_1': (0.0, 1.0, 0.0),  # green
+            '/tb3_2': (0.0, 0.0, 1.0),  # blue
+        }
+
+        ns = self.get_namespace()
+        color = namespace_colors.get(ns, (1.0, 1.0, 0.0))  # default yellow if unknown
+        self.marker_msg.color.r = color[0]
+        self.marker_msg.color.g = color[1]
+        self.marker_msg.color.b = color[2]
+        self.marker_msg.color.a = 1.0
+
         self.pub_marker.publish(self.marker_msg)
+
 
 # ------------------- Main -------------------
 def main(args=None):

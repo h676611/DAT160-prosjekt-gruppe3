@@ -70,8 +70,12 @@ class WallfollowerController(Node):
         # Average readings in small sectors to smooth noise
         front_sector = np.concatenate((msg.ranges[345:], msg.ranges[:16]))
         self.front = np.min(front_sector)
-        self.right = msg.ranges[315]
-        self.left = msg.ranges[45]
+
+        right_sector = msg.ranges[300:330]
+        self.right = np.min(right_sector)
+        
+        left_sector = msg.ranges[30:60]
+        self.left = np.min(left_sector)
 
     # -------------------------------------------------------
     # HELPER METHODS
@@ -148,7 +152,8 @@ class WallfollowerController(Node):
         if too_close:
             if self.get_namespace().strip('/') < ns:
                 self.get_logger().info(f"Too close to {ns}, yielding.")
-                vel = Twist()  # Stop
+                vel = Twist()
+                vel.angular.z = 0.8  # turn away
                 self.pub.publish(vel)
                 return
             else:

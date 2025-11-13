@@ -4,6 +4,8 @@ from rclpy.action import ActionClient
 from comp3_interfaces.action import GoToPoint, ExploreWall
 from geometry_msgs.msg import Point
 from comp3_interfaces.srv import Wallfollow
+from visualization_msgs.msg import Marker
+from std_msgs.msg import Header, ColorRGBA
 
 import time
 import threading
@@ -20,6 +22,9 @@ class RobotController(Node):
     def __init__(self):
         Node.__init__(self, node_name="robot_controller")
         self._action_client = ActionClient(self, GoToPoint, 'gotopoint')
+
+        self.marker_pub = self.create_publisher(Marker, 'visualization_marker', 10)
+        self.start_marker_id = 0  # unique id for this marker
 
         # Events to coordinate asynchronous goal/result callbacks with execute_callback
         self._bug2_goal_accepted_event = threading.Event()
@@ -68,6 +73,25 @@ class RobotController(Node):
         return math.sqrt(dx**2 + dy**2)
     
 
+    def publish_start_marker(self, point: Point):
+        marker = Marker()
+        marker.header.frame_id = 'map'  # or 'odom', depending on your frame
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = 'start_point'
+        marker.id = self.start_marker_id
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+        marker.pose.position = point
+        marker.pose.orientation.w = 1.0  # neutral orientation
+        marker.scale.x = 0.2
+        marker.scale.y = 0.2
+        marker.scale.z = 0.2
+        marker.color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)  # green
+        marker.lifetime.sec = 0  # 0 = forever
+        self.marker_pub.publish(marker)
+
+    
+
 
     # ------------------- Action client -------------------
 
@@ -95,7 +119,6 @@ class RobotController(Node):
                 return result
             time.sleep(0.1)
         
-        self.get_logger().info(f'Initial position received: x={self.position.x:.2f}, y={self.position.y:.2f}')
 
         # Pick point in wall
         target_point = wall[0]
@@ -103,7 +126,7 @@ class RobotController(Node):
             if self.distance(pt, self.position) < self.distance(target_point, self.position):
                 target_point = pt
 
-        self.get_logger().info(f"Target point selected: x={target_point.x:.2f}, y={target_point.y:.2f}")
+        # self.get_logger().info(f"Target point selected: x={target_point.x:.2f}, y={target_point.y:.2f}")
 
         # Send goal point to bug2 
         
@@ -128,7 +151,9 @@ class RobotController(Node):
         self.get_logger().info("Bug2 navigation completed successfully.")
 
         start_point = self.position
-        self.get_logger().info(f"start_point: {start_point}")
+        # self.get_logger().info(f"start_point: {start_point}")
+        self.publish_start_marker(start_point)
+
 
         # Start wall following 
         self.send_request_wallfollow(activate=True, follow_right=follow_right)

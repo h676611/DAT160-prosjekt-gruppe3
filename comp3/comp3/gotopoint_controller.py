@@ -71,7 +71,7 @@ class Gotopointcontroller(Node):
 
         distance = math.sqrt(dx**2 + dy**2)
 
-        k = 0.7
+        k = 0.75
         boundary = 0.01 * distance
 
         # Desired heading
@@ -82,7 +82,7 @@ class Gotopointcontroller(Node):
 
         if abs(error) > boundary:
             vel_msg.angular.z = max(-1.0, min(1.0, k * error))
-            vel_msg.linear.x = max(0.0, 0.45 * math.cos(error))
+            vel_msg.linear.x = max(0.0, 0.40 * math.cos(error))
         else:
             vel_msg.linear.x = min(0.4, 0.2 + 0.4 * distance)
 
