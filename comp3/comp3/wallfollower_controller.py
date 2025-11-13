@@ -25,7 +25,7 @@ class WallfollowerController(Node):
         self.current_namespace = self.get_namespace().strip('/') or 'tb3_0'
 
         # Subscribe to all robots’ odometry except self
-        for ns in ['tb3_0', 'tb3_1', 'tb3_2']:
+        for ns in ['tb3_0', 'tb3_1', 'tb3_2', 'tb3_3']:
             if ns != self.current_namespace:
                 self.create_subscription(Odometry, f'/{ns}/odom',
                                          lambda msg, ns=ns: self.clbk_other_odom(msg, ns), 10)
@@ -40,10 +40,10 @@ class WallfollowerController(Node):
         self.left = 100.0
 
         # --- Control parameters ---
-        self.desired_distance = 0.6
+        self.desired_distance = 0.65
         self.wall_distance_target = 0.55
         self.distance_threshold = 0.02
-        self.collision_distance = 0.4
+        self.collision_distance = 0.45
 
         # --- Timer ---
         self.timer = self.create_timer(0.05, self.timer_callback)
@@ -73,7 +73,7 @@ class WallfollowerController(Node):
 
         right_sector = msg.ranges[300:330]
         self.right = np.min(right_sector)
-        
+
         left_sector = msg.ranges[30:60]
         self.left = np.min(left_sector)
 
@@ -150,14 +150,21 @@ class WallfollowerController(Node):
         # Collision avoidance
         ns, too_close = self.too_close_to_other_robot()
         if too_close:
-            if self.get_namespace().strip('/') < ns:
+            if int(self.get_namespace().strip('/').split('_')[-1]) > int(ns.split('_')[-1]):
                 self.get_logger().info(f"Too close to {ns}, yielding.")
                 vel = Twist()
-                vel.angular.z = 0.8  # turn away
+                # vel.angular.z = 0.8  # turn away
+                # vel.linear.x = -0.01
                 self.pub.publish(vel)
                 return
-            else:
+            elif self.front < self.distance_threshold + 0.1:
                 self.get_logger().info(f"Too close to {ns}, proceeding.")
+                vel = Twist()
+                side = 1 if self.follow_right else -1
+                vel.angular.z = 1.0 * side  # turn away from wall
+                vel.linear.x = -0.01
+                self.pub.publish(vel)
+                return
 
         # Wall following
         vel = self.wall_follow_logic()

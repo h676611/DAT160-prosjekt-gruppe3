@@ -31,7 +31,7 @@ class MarkerDetection(Node):
         self.buffer_size = 5
         self.stable_id_threshold = 3
         self.radius = 0.1  # for majority clustering
-        self.robots = ['tb3_0', 'tb3_1', 'tb3_2']
+        self.robots = ['tb3_0', 'tb3_1', 'tb3_2', 'tb3_3']
 
         # ----------- State tracking for each robot -----------
         self.marker_id = {ns: 1000 for ns in self.robots}
@@ -39,8 +39,8 @@ class MarkerDetection(Node):
         self.prev_marker_position = {ns: Point() for ns in self.robots}
         self.id4_buffer = {ns: [] for ns in self.robots}
         self.prev_id4_position = {ns: Point() for ns in self.robots}
-        self.hasSentID4pos = {ns: False for ns in self.robots}
 
+        self.hasSentID4pos = False
         # ----------- Create subscriptions and timers -----------
         for ns in self.robots:
             self.create_subscription(Pose, f'/{ns}/marker_map_pose',
@@ -90,26 +90,14 @@ class MarkerDetection(Node):
 
 
         # Buffer ID4 positions for stability
-        if current_id == 4:
-            buf = self.id4_buffer[ns]
-            buf.append(current_pos)
-            if len(buf) > self.buffer_size:
-                buf.pop(0)
+        if not self.hasSentID4pos and current_id == 4 and self.marker_dict[4]:
+            self.get_logger().info(f"[{ns}] Sending stable SetID4pos")
+            req = SetID4pos.Request()
+            req.point = current_pos
+            self.setID4pos_srv.call_async(req)
+            self.hasSentID4pos = True
+            
 
-            if len(buf) >= self.stable_id_threshold:
-                mean_point = self.get_majority_point(buf)
-                delta_sq = (mean_point.x - self.prev_id4_position[ns].x) ** 2 + \
-                           (mean_point.y - self.prev_id4_position[ns].y) ** 2
-
-                if delta_sq > 0.0025 and not self.hasSentID4pos[ns]:
-                    self.get_logger().info(f"[{ns}] Sending stable SetID4pos (majority filtered)")
-                    req = SetID4pos.Request()
-                    req.point = mean_point
-                    req.robot_number = int(ns[-1])  # tb3_0 -> 0, tb3_1 -> 1, tb3_2 -> 2
-                    self.setID4pos_srv.call_async(req)
-                    self.hasSentID4pos[ns] = True
-
-                self.prev_id4_position[ns] = mean_point
 
     # ----------- Helper: majority filtering -----------
     def get_majority_point(self, points):

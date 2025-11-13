@@ -38,7 +38,7 @@ def generate_launch_description():
         )
     
 
-    namespaces = ['tb3_0', 'tb3_1', 'tb3_2']
+    namespaces = ['tb3_0', 'tb3_1', 'tb3_2', 'tb3_3']
 
     nodes = []
     for ns in namespaces:
@@ -75,12 +75,21 @@ def generate_launch_description():
     other_pkg_share = get_package_share_directory('multi_robot_challenge_23')
     other_launch = os.path.join(other_pkg_share, 'launch', 'spawn_robot.launch.py')
 
-    include_other = IncludeLaunchDescription(
+    include_other_2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(other_launch),
         launch_arguments={
             'namespace': 'tb3_2',
             'x': '-0.5',
             'y': '-0.5',
+            'use_sim_time': 'false'
+        }.items()
+    )
+    include_other_3 = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(other_launch),
+        launch_arguments={
+            'namespace': 'tb3_3',
+            'x': '0.5',
+            'y': '0.5',
             'use_sim_time': 'false'
         }.items()
     )
@@ -97,5 +106,6 @@ def generate_launch_description():
             package='scoring',
             executable='scoring',
             name='scoring'),
-        include_other
+        include_other_2,
+        include_other_3,
     ])

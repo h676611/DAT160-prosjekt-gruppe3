@@ -142,7 +142,7 @@ class Bug2Controller(Node):
             self.get_logger().info("Waiting for goal point")
             return
         
-        if self.distance(self.position, self.goal) < 0.6:
+        if self.distance(self.position, self.goal) < 0.65:
             self.atGoal = True
             return
 
@@ -250,6 +250,7 @@ class Bug2Controller(Node):
             '/tb3_0': (1.0, 0.0, 0.0),  # red
             '/tb3_1': (0.0, 1.0, 0.0),  # green
             '/tb3_2': (0.0, 0.0, 1.0),  # blue
+            '/tb3_3': (1.0, 1.0, 0.0)   # yellow
         }
 
         ns = self.get_namespace()
