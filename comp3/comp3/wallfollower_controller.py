@@ -40,8 +40,8 @@ class WallfollowerController(Node):
         self.left = 100.0
 
         # --- Control parameters ---
-        self.desired_distance = 0.65
-        self.wall_distance_target = 0.55
+        self.desired_distance = 0.6
+        self.wall_distance_target = 0.5
         self.distance_threshold = 0.02
         self.collision_distance = 0.45
 
@@ -67,7 +67,6 @@ class WallfollowerController(Node):
         return response
 
     def clbk_laser(self, msg):
-        # Average readings in small sectors to smooth noise
         front_sector = np.concatenate((msg.ranges[345:], msg.ranges[:16]))
         self.front = np.min(front_sector)
 
@@ -151,17 +150,17 @@ class WallfollowerController(Node):
         ns, too_close = self.too_close_to_other_robot()
         if too_close:
             if int(self.get_namespace().strip('/').split('_')[-1]) > int(ns.split('_')[-1]):
-                self.get_logger().info(f"Too close to {ns}, yielding.")
+                # self.get_logger().info(f"Too close to {ns}, yielding.")
                 vel = Twist()
                 # vel.angular.z = 0.8  # turn away
-                # vel.linear.x = -0.01
+                vel.linear.x = -0.01
                 self.pub.publish(vel)
                 return
             elif self.front < self.distance_threshold + 0.1:
-                self.get_logger().info(f"Too close to {ns}, proceeding.")
+                # self.get_logger().info(f"Too close to {ns}, proceeding.")
                 vel = Twist()
                 side = 1 if self.follow_right else -1
-                vel.angular.z = 1.0 * side  # turn away from wall
+                vel.angular.z = 1.0 * side  
                 vel.linear.x = -0.01
                 self.pub.publish(vel)
                 return

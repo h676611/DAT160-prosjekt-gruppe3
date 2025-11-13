@@ -99,29 +99,6 @@ class MarkerDetection(Node):
             
 
 
-    # ----------- Helper: majority filtering -----------
-    def get_majority_point(self, points):
-        clusters = []
-        for p in points:
-            placed = False
-            for cluster in clusters:
-                cx = sum(pt.x for pt in cluster) / len(cluster)
-                cy = sum(pt.y for pt in cluster) / len(cluster)
-                if (p.x - cx)**2 + (p.y - cy)**2 < self.radius**2:
-                    cluster.append(p)
-                    placed = True
-                    break
-            if not placed:
-                clusters.append([p])
-
-        largest_cluster = max(clusters, key=len)
-        mean_point = Point()
-        mean_point.x = sum(p.x for p in largest_cluster) / len(largest_cluster)
-        mean_point.y = sum(p.y for p in largest_cluster) / len(largest_cluster)
-        mean_point.z = sum(p.z for p in largest_cluster) / len(largest_cluster)
-        return mean_point
-
-
 def main(args=None):
     rclpy.init(args=args)
     node = MarkerDetection()

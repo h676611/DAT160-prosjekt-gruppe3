@@ -8,6 +8,7 @@ import time
 from comp3_interfaces.srv import SetID4pos
 from comp3_interfaces.action import GoToPoint
 from geometry_msgs.msg import Point
+import math
 
 class LeaderClass(Node):
     def __init__(self):
@@ -16,7 +17,7 @@ class LeaderClass(Node):
         self.robot_namespaces = ['tb3_0', 'tb3_1', 'tb3_2', 'tb3_3']
         self.backup_namespaces = ['tb3_2', 'tb3_3']
 
-        # ExploreWall action clients for primary robots
+        # ExploreWall action clients
         self.action_clients = {
             ns: ActionClient(self, ExploreWall, f'/{ns}/explore_wall')
             for ns in self.robot_namespaces
@@ -41,7 +42,7 @@ class LeaderClass(Node):
         self.wall_segments_req = SetWallpoints.Request()
 
         if self.send_request_wallpoints():
-            self.send_goal(self.wall_segments[0], 'tb3_0', follow_right=True)
+            self.send_goal(self.wall_segments[0], 'tb3_0', follow_right=False)
             self.send_goal(self.wall_segments[1], 'tb3_1', follow_right=False)
         else:
             self.get_logger().error('Unable to fetch wall segments; goals will not be sent.')
@@ -107,13 +108,16 @@ class LeaderClass(Node):
 
     def get_result_callback(self, future, robot_ns):
         self.get_logger().info(f'{robot_ns} finished exploring its wall.')
-        # send next segment if needed
         current_index = self.robot_wall_progress[robot_ns]
-        if current_index + 1 < len(self.wall_segments):
-            next_index = current_index + 1
-            follow_right = True if robot_ns == 'tb3_0' else False
-            self.robot_wall_progress[robot_ns] = next_index
-            self.send_goal(self.wall_segments[next_index], robot_ns, follow_right)
+        follow_right = True  # Always follow left wall
+        next_index = 0
+
+        if current_index == 0:
+            next_index = 1
+        elif current_index == 1:
+            next_index = 0
+
+        self.send_goal(self.wall_segments[next_index], robot_ns, follow_right)
 
     def feedback_callback(self, feedback_msg):
         pass
@@ -126,9 +130,13 @@ class LeaderClass(Node):
         goal_msg.wall_id = 0
         goal_msg.follow_right = follow_right
 
-        self.get_logger().info(f'Sending ExploreWall goal to {robot_ns} (follow_right={follow_right})')
+        wall_index = self.wall_segments.index(wall)
+        self.robot_wall_progress[robot_ns] = wall_index
+
+        self.get_logger().info(f'Sending ExploreWall goal to {robot_ns} (segment={wall_index}, follow_right={follow_right})')
         send_future = client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
         send_future.add_done_callback(lambda fut, ns=robot_ns: self.goal_response_callback(fut, ns))
+
 
     # ----------------- Wallpoints service -----------------
     def send_request_wallpoints(self):

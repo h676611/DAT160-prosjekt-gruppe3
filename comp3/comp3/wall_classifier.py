@@ -31,10 +31,8 @@ class MapFilterClass(Node):
 
         self.create_subscription(OccupancyGrid, '/map', callback=self.clbk_map, qos_profile=qos_profile)
         
-        self.pub_filtered_map = self.create_publisher(OccupancyGrid, '/filtered_map', 10)
 
         self.pub_marker = self.create_publisher(Marker, '/marker_visual', 2)
-        # self.cluster_pub = self.create_publisher(PoseArray, '/wall_points', 10)
 
 
         self.map_received = False
@@ -80,6 +78,40 @@ class MapFilterClass(Node):
             return response
 
         self.cluster_points = self.find_wall_clusters(self.map_msg)
+        # Clear any previous visualization
+        marker_array = []
+
+        # Generate one marker per cluster
+        for i, point_array in enumerate(self.cluster_points):
+            marker = Marker()
+            marker.header.frame_id = "map"
+            marker.header.stamp = self.get_clock().now().to_msg()
+            marker.id = i  # unique ID per cluster
+            marker.type = Marker.POINTS
+            marker.action = Marker.ADD
+            marker.pose.orientation.w = 1.0
+            marker.scale.x = 0.1
+            marker.scale.y = 0.1
+
+            # Generate a unique color based on cluster index
+            color = [
+                ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0),  # red
+                ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0),  # green
+                ColorRGBA(r=0.0, g=0.0, b=1.0, a=1.0),  # blue
+                ColorRGBA(r=1.0, g=1.0, b=0.0, a=1.0),  # yellow
+                ColorRGBA(r=1.0, g=0.0, b=1.0, a=1.0),  # magenta
+            ]
+            marker.color = list(color)[i % len(color)]
+            marker.color.a = 1.0
+
+            # Add all points from this cluster
+            for p in point_array.points:
+                marker.points.append(p)
+
+            # Publish this cluster’s marker
+            self.pub_marker.publish(marker)
+
+
 
         # sort clusters by size (number of points)
         self.cluster_points.sort(key=lambda pa: len(pa.points), reverse=True)
@@ -107,15 +139,6 @@ class MapFilterClass(Node):
 
         self.reduce_map()
 
-
-    def get_map_pos(self, map_iter):
-        """
-        Returns x and y integer values of the map grid given the iteration value of the map list.
-        """
-        x = int(map_iter/self.map_msg.info.width)
-        y = int(map_iter - x*self.map_msg.info.width)
-
-        return [x, y]
     
     def get_world_pos(self, x, y) -> Point:
         """
@@ -217,7 +240,7 @@ class MapFilterClass(Node):
             if len(coords) == 0:
                 continue
 
-            threshold = 1.0
+            threshold = 0.8  # meters
 
             for j in range(len(coords)):
                 row, col = coords[j]
@@ -245,22 +268,6 @@ class MapFilterClass(Node):
         return cluster_points
 
 
-
-    def is_near_wall(self, data: np.ndarray, row: int, col: int, radius: int = 3) -> bool:
-        """
-        Checks if there is any occupied cell (value 100) within a square neighborhood
-        centered at (row, col) with a given radius.
-        """
-        height, width = data.shape
-        r_min = max(0, row - radius)
-        r_max = min(height, row + radius + 1)
-        c_min = max(0, col - radius)
-        c_max = min(width, col + radius + 1)
-        region = data[r_min:r_max, c_min:c_max]
-        return np.any(region == 100)
-
-    
-
     def grid_to_matrix(self, grid_msg: OccupancyGrid):
         """
         Converts an OccupancyGrid message to a 2D numpy array.
@@ -282,34 +289,6 @@ class MapFilterClass(Node):
         grid_msg.data = matrix.flatten().tolist()
         return grid_msg
 
-
-    # def timer_callback(self):
-
-    #     if not hasattr(self, 'og_map_msg'):
-    #         return  # Wait until a map is received
-    #     if len(self.map_msg.data) == 0:
-    #         return  # Skip if no filtered map yet
-        
-        
-    #     self.cluster_points = self.find_wall_clusters(self.map_msg)
-        
-
-    #     points_msg = PoseArray()
-    #     points_msg.header.frame_id = "map"
-
-    #     for point in self.cluster_points:
-    #         pose = Pose()
-    #         pose.position = point
-    #         pose.orientation.w = 1.0  # identity orientation
-    #         points_msg.poses.append(pose)
-
-    #     self.cluster_pub.publish(points_msg)
-
-        
-    #     # self.map_msg.header.stamp = self.get_clock().now().to_msg()
-    #     # self.map_msg.info.map_load_time = self.get_clock().now().to_msg()
-
-    #     # self.pub_filtered_map.publish(self.map_msg)
 
 
 def main(args=None):

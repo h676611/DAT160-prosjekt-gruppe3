@@ -126,8 +126,6 @@ class RobotController(Node):
             if self.distance(pt, self.position) < self.distance(target_point, self.position):
                 target_point = pt
 
-        # self.get_logger().info(f"Target point selected: x={target_point.x:.2f}, y={target_point.y:.2f}")
-
         # Send goal point to bug2 
         
         self.send_goal(target_point)

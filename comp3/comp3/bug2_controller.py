@@ -147,7 +147,7 @@ class Bug2Controller(Node):
             return
 
         if self.isWallFollowActive:
-            if self.isOnMline() and self.hitPoint is not None and  self.isCloserToGoal(self.position, self.hitPoint):
+            if self.isOnMline() and self.hitPoint is not None and self.isCloserToGoal(self.position, self.hitPoint):
                 self.switch_to_gotopoint()
         else:
             if self.front < 0.5:
